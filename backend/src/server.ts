@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { errorMiddleware } from "./middleware/error.middleware.js";
+import { notFoundMiddleware } from "./middleware/not-found.middleware.js";
 
 dotenv.config();
 
@@ -22,7 +23,9 @@ app.get("/health", (_req, res) => {
 const PORT = process.env.PORT || 5000;
 
 app.use(errorMiddleware);
+app.use(notFoundMiddleware);
 
 app.listen(PORT, () => {
   console.log(`CloudDrop API running on port ${PORT}`);
 });
+
