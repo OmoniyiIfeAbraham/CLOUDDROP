@@ -1,4 +1,4 @@
-const requiredEnvVariables = ["DATABASE_URL"];
+const requiredEnvVariables = ["DATABASE_URL", "PORT"];
 
 export const validateEnv = () => {
   for (const variable of requiredEnvVariables) {
@@ -7,4 +7,3 @@ export const validateEnv = () => {
     }
   }
 };
-
