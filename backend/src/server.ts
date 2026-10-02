@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/not-found.middleware.js";
 import { validateEnv } from "./utils/env.utils.js";
-
+import morgan from "morgan";
 
 dotenv.config();
 
@@ -14,6 +14,7 @@ const app = express();
 
 // Middleware
 app.use(cors());
+app.use(morgan("dev"));
 app.use(express.json());
 app.use("/api/v1", (_req, _res, next) => {
   next();
