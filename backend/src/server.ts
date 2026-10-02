@@ -33,8 +33,12 @@ const PORT = process.env.PORT || 5000;
 app.use(errorMiddleware);
 app.use(notFoundMiddleware);
 
-app.listen(PORT, () => {
-  console.log(`CloudDrop API running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`CloudDrop API running on port ${PORT}`);
+  });
+}
+
+export default app;
 
 
