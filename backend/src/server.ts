@@ -3,8 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/not-found.middleware.js";
+import { validateEnv } from "./utils/env.utils.js";
+
 
 dotenv.config();
+
+validateEnv();
 
 const app = express();
 
