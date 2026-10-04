@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { getFileById } from "../services/file.service.js";
+import { generateShareUrl } from "../services/s3-share.service.js";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -46,19 +47,19 @@ export const shareFile = async (
     return;
   }
 
+  const shareUrl = await generateShareUrl(file.s3Key);
+
   res.status(200).json({
     success: true,
-    message: "File is ready to be shared",
+    message: "Share URL generated successfully",
     data: {
       file: {
         id: file.id,
         originalName: file.originalName,
         mimeType: file.mimeType,
-        size: file.size,
       },
-      sharing: {
-        status: "S3 integration pending",
-      },
+      shareUrl,
+      expiresIn: 3600,
     },
   });
 };
