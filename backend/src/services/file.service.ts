@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { deleteFromS3 } from "./s3-delete.service.js";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -63,6 +64,8 @@ export const deleteFile = async (fileId: string, userId: string) => {
   if (!file) {
     return null;
   }
+
+  await deleteFromS3(file.s3Key);
 
   return prisma.file.delete({
     where: {
