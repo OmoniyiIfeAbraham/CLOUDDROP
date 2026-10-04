@@ -5,6 +5,7 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/not-found.middleware.js";
 import { validateEnv } from "./utils/env.utils.js";
 import morgan from "morgan";
+import authRoutes from "./routes/auth.routes.js";
 
 dotenv.config();
 
@@ -19,6 +20,8 @@ app.use(express.json());
 app.use("/api/v1", (_req, _res, next) => {
   next();
 });
+app.use("/api/v1/auth", authRoutes);
+
 
 // Health check
 app.get("/health", (_req, res) => {
