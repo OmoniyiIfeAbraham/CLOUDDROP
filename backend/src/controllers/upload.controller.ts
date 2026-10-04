@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { validateRequest } from "../utils/validation.utils.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
 import { uploadToS3 } from "../services/s3.service.js";
+import { deleteFromS3 } from "../services/s3-delete.service.js";
 import { createFile } from "../services/file.service.js";
 import crypto from "crypto";
 
@@ -44,26 +45,48 @@ export const uploadFile = async (
 
   const s3Key = `${req.userId}/${fileId}-${req.file.originalname}`;
 
-  const uploadedFile = await uploadToS3(
-    req.file.buffer,
-    s3Key,
-    req.file.mimetype,
-  );
+  try {
+    const uploadedFile = await uploadToS3(
+      req.file.buffer,
+      s3Key,
+      req.file.mimetype,
+    );
 
-  const savedFile = await createFile(
-    req.userId,
-    req.file.originalname,
-    uploadedFile.key,
-    req.file.mimetype,
-    req.file.size,
-    category,
-  );
+    try {
+      const savedFile = await createFile(
+        req.userId,
+        req.file.originalname,
+        uploadedFile.key,
+        req.file.mimetype,
+        req.file.size,
+        category,
+      );
 
-  res.status(201).json({
-    success: true,
-    message: "File uploaded successfully",
-    data: {
-      file: savedFile,
-    },
-  });
+      res.status(201).json({
+        success: true,
+        message: "File uploaded successfully",
+        data: {
+          file: savedFile,
+        },
+      });
+    } catch {
+      await deleteFromS3(uploadedFile.key);
+
+      res.status(500).json({
+        success: false,
+        message: "File metadata could not be saved",
+        error: {
+          code: "DATABASE_ERROR",
+        },
+      });
+    }
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: "File upload failed",
+      error: {
+        code: "UPLOAD_FAILED",
+      },
+    });
+  }
 };

@@ -22,15 +22,25 @@ export const getFiles = async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const files = await getUserFiles(req.userId);
+  try {
+    const files = await getUserFiles(req.userId);
 
-  res.status(200).json({
-    success: true,
-    message: "Files retrieved successfully",
-    data: {
-      files,
-    },
-  });
+    res.status(200).json({
+      success: true,
+      message: "Files retrieved successfully",
+      data: {
+        files,
+      },
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: "Files could not be retrieved",
+      error: {
+        code: "FILES_RETRIEVAL_FAILED",
+      },
+    });
+  }
 };
 
 export const searchFiles = async (req: AuthRequest, res: Response) => {
@@ -58,15 +68,25 @@ export const searchFiles = async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const files = await searchUserFiles(req.userId, search.trim());
+  try {
+    const files = await searchUserFiles(req.userId, search.trim());
 
-  res.status(200).json({
-    success: true,
-    message: "Files search completed successfully",
-    data: {
-      files,
-    },
-  });
+    res.status(200).json({
+      success: true,
+      message: "Files search completed successfully",
+      data: {
+        files,
+      },
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: "File search failed",
+      error: {
+        code: "SEARCH_FAILED",
+      },
+    });
+  }
 };
 
 export const getFile = async (req: AuthRequest, res: Response) => {
@@ -94,26 +114,36 @@ export const getFile = async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const file = await getFileById(id, req.userId);
+  try {
+    const file = await getFileById(id, req.userId);
 
-  if (!file) {
-    res.status(404).json({
-      success: false,
-      message: "File not found",
-      error: {
-        code: "NOT_FOUND",
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+        error: {
+          code: "NOT_FOUND",
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "File retrieved successfully",
+      data: {
+        file,
       },
     });
-    return;
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: "File could not be retrieved",
+      error: {
+        code: "FILE_RETRIEVAL_FAILED",
+      },
+    });
   }
-
-  res.status(200).json({
-    success: true,
-    message: "File retrieved successfully",
-    data: {
-      file,
-    },
-  });
 };
 
 export const removeFile = async (req: AuthRequest, res: Response) => {
@@ -141,21 +171,31 @@ export const removeFile = async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const file = await deleteFile(id, req.userId);
+  try {
+    const file = await deleteFile(id, req.userId);
 
-  if (!file) {
-    res.status(404).json({
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+        error: {
+          code: "NOT_FOUND",
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "File deleted successfully",
+    });
+  } catch {
+    res.status(500).json({
       success: false,
-      message: "File not found",
+      message: "File could not be deleted",
       error: {
-        code: "NOT_FOUND",
+        code: "DELETE_FAILED",
       },
     });
-    return;
   }
-
-  res.status(200).json({
-    success: true,
-    message: "File deleted successfully",
-  });
 };

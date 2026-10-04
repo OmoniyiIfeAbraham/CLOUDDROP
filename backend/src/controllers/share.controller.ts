@@ -34,32 +34,42 @@ export const shareFile = async (
     return;
   }
 
-  const file = await getFileById(id, req.userId);
+  try {
+    const file = await getFileById(id, req.userId);
 
-  if (!file) {
-    res.status(404).json({
-      success: false,
-      message: "File not found",
-      error: {
-        code: "NOT_FOUND",
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+        error: {
+          code: "NOT_FOUND",
+        },
+      });
+      return;
+    }
+
+    const shareUrl = await generateShareUrl(file.s3Key);
+
+    res.status(200).json({
+      success: true,
+      message: "Share URL generated successfully",
+      data: {
+        file: {
+          id: file.id,
+          originalName: file.originalName,
+          mimeType: file.mimeType,
+        },
+        shareUrl,
+        expiresIn: 3600,
       },
     });
-    return;
-  }
-
-  const shareUrl = await generateShareUrl(file.s3Key);
-
-  res.status(200).json({
-    success: true,
-    message: "Share URL generated successfully",
-    data: {
-      file: {
-        id: file.id,
-        originalName: file.originalName,
-        mimeType: file.mimeType,
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: "Share URL could not be generated",
+      error: {
+        code: "SHARE_FAILED",
       },
-      shareUrl,
-      expiresIn: 3600,
-    },
-  });
+    });
+  }
 };

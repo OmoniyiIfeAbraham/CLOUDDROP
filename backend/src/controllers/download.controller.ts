@@ -34,33 +34,43 @@ export const downloadFile = async (
     return;
   }
 
-  const file = await getFileById(id, req.userId);
+  try {
+    const file = await getFileById(id, req.userId);
 
-  if (!file) {
-    res.status(404).json({
-      success: false,
-      message: "File not found",
-      error: {
-        code: "NOT_FOUND",
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+        error: {
+          code: "NOT_FOUND",
+        },
+      });
+      return;
+    }
+
+    const downloadUrl = await generateDownloadUrl(file.s3Key);
+
+    res.status(200).json({
+      success: true,
+      message: "File download URL generated successfully",
+      data: {
+        file: {
+          id: file.id,
+          originalName: file.originalName,
+          mimeType: file.mimeType,
+          size: file.size,
+        },
+        downloadUrl,
+        expiresIn: 300,
       },
     });
-    return;
-  }
-
-  const downloadUrl = await generateDownloadUrl(file.s3Key);
-
-  res.status(200).json({
-    success: true,
-    message: "File download URL generated successfully",
-    data: {
-      file: {
-        id: file.id,
-        originalName: file.originalName,
-        mimeType: file.mimeType,
-        size: file.size,
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: "File download URL could not be generated",
+      error: {
+        code: "DOWNLOAD_FAILED",
       },
-      downloadUrl,
-      expiresIn: 300,
-    },
-  });
+    });
+  }
 };
