@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { getFileById } from "../services/file.service.js";
+import { generateDownloadUrl } from "../services/s3-download.service.js";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -46,17 +47,20 @@ export const downloadFile = async (
     return;
   }
 
+  const downloadUrl = await generateDownloadUrl(file.s3Key);
+
   res.status(200).json({
     success: true,
-    message: "File download information retrieved successfully",
+    message: "File download URL generated successfully",
     data: {
       file: {
         id: file.id,
         originalName: file.originalName,
         mimeType: file.mimeType,
         size: file.size,
-        s3Key: file.s3Key,
       },
+      downloadUrl,
+      expiresIn: 300,
     },
   });
 };

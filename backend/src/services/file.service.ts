@@ -8,6 +8,32 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
+export const createFile = async (
+  userId: string,
+  originalName: string,
+  s3Key: string,
+  mimeType: string,
+  size: number,
+  category:
+    | "Documents"
+    | "Images"
+    | "Videos"
+    | "Audio"
+    | "Archives"
+    | "Other",
+) => {
+  return prisma.file.create({
+    data: {
+      userId,
+      originalName,
+      s3Key,
+      mimeType,
+      size,
+      category,
+    },
+  });
+};
+
 export const getUserFiles = async (userId: string) => {
   return prisma.file.findMany({
     where: { userId },

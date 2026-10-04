@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { validateRequest } from "../utils/validation.utils.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
 import { uploadToS3 } from "../services/s3.service.js";
+import { createFile } from "../services/file.service.js";
 import crypto from "crypto";
 
 interface AuthRequest extends Request {
@@ -49,18 +50,20 @@ export const uploadFile = async (
     req.file.mimetype,
   );
 
-  res.status(200).json({
+  const savedFile = await createFile(
+    req.userId,
+    req.file.originalname,
+    uploadedFile.key,
+    req.file.mimetype,
+    req.file.size,
+    category,
+  );
+
+  res.status(201).json({
     success: true,
-    message: "File uploaded to S3 successfully",
+    message: "File uploaded successfully",
     data: {
-      file: {
-        id: fileId,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size,
-        category,
-        s3Key: uploadedFile.key,
-      },
+      file: savedFile,
     },
   });
 };
