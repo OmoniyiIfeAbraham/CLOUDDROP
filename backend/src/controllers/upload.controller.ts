@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { validateRequest } from "../utils/validation.utils.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
+import { validateUploadedFile } from "../utils/file-upload.validation.js";
 import { uploadToS3 } from "../services/s3.service.js";
 import { deleteFromS3 } from "../services/s3-delete.service.js";
 import { createFile } from "../services/file.service.js";
@@ -36,16 +37,21 @@ export const uploadFile = async (
     return;
   }
 
-  const { category } = validateRequest(
-    fileCategorySchema,
-    req.body,
-  );
-
-  const fileId = crypto.randomUUID();
-
-  const s3Key = `${req.userId}/${fileId}-${req.file.originalname}`;
-
   try {
+    validateUploadedFile(
+      req.file.mimetype,
+      req.file.size,
+    );
+
+    const { category } = validateRequest(
+      fileCategorySchema,
+      req.body,
+    );
+
+    const fileId = crypto.randomUUID();
+
+    const s3Key = `${req.userId}/${fileId}-${req.file.originalname}`;
+
     const uploadedFile = await uploadToS3(
       req.file.buffer,
       s3Key,
@@ -80,12 +86,40 @@ export const uploadFile = async (
         },
       });
     }
-  } catch {
-    res.status(500).json({
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "File size exceeds the 100 MB limit"
+    ) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+        error: {
+          code: "FILE_TOO_LARGE",
+        },
+      });
+      return;
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "File type is not supported"
+    ) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+        error: {
+          code: "UNSUPPORTED_FILE_TYPE",
+        },
+      });
+      return;
+    }
+
+    res.status(400).json({
       success: false,
-      message: "File upload failed",
+      message: "Invalid upload request",
       error: {
-        code: "UPLOAD_FAILED",
+        code: "INVALID_UPLOAD",
       },
     });
   }
