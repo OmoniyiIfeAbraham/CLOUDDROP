@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { validateRequest } from "../utils/validation.utils.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
+import { uploadToS3 } from "../services/s3.service.js";
+import crypto from "crypto";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -37,15 +39,27 @@ export const uploadFile = async (
     req.body,
   );
 
+  const fileId = crypto.randomUUID();
+
+  const s3Key = `${req.userId}/${fileId}-${req.file.originalname}`;
+
+  const uploadedFile = await uploadToS3(
+    req.file.buffer,
+    s3Key,
+    req.file.mimetype,
+  );
+
   res.status(200).json({
     success: true,
-    message: "File received successfully",
+    message: "File uploaded to S3 successfully",
     data: {
       file: {
+        id: fileId,
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
         category,
+        s3Key: uploadedFile.key,
       },
     },
   });
