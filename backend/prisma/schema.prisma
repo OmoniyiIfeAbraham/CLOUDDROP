@@ -25,7 +25,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  files        File[]
+  files File[]
 }
 
 model File {
@@ -39,7 +39,23 @@ model File {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shares Share[]
 
   @@index([userId])
+  @@index([userId, category])
+  @@index([userId, createdAt])
+}
+
+model Share {
+  id        String   @id @default(uuid())
+  fileId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@index([expiresAt])
 }
