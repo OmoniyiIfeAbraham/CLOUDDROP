@@ -1,4 +1,4 @@
-const requiredEnvVariables = ["DATABASE_URL"];
+const requiredEnvVariables = ["DATABASE_URL", "JWT_SECRET"];
 
 export const validateEnv = () => {
   for (const variable of requiredEnvVariables) {

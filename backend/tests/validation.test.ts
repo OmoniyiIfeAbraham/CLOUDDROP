@@ -1,29 +1,48 @@
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
-import { validateRequest } from "../src/utils/validation.utils.js";
+import { fileCategorySchema } from "../src/utils/file.validation.js";
+import { validateUploadedFile } from "../src/utils/file-upload.validation.js";
 
-describe("Request validation", () => {
-  it("should validate valid data", () => {
-    const schema = z.object({
-      email: z.string().email(),
+describe("File validation", () => {
+  it("accepts a valid file category", () => {
+    const result = fileCategorySchema.parse({
+      category: "Documents",
     });
 
-    const result = validateRequest(schema, {
-      email: "test@example.com",
-    });
-
-    expect(result.email).toBe("test@example.com");
+    expect(result.category).toBe("Documents");
   });
 
-  it("should reject invalid data", () => {
-    const schema = z.object({
-      email: z.string().email(),
-    });
-
+  it("rejects an invalid file category", () => {
     expect(() =>
-      validateRequest(schema, {
-        email: "invalid-email",
-      })
+      fileCategorySchema.parse({
+        category: "InvalidCategory",
+      }),
     ).toThrow();
+  });
+
+  it("accepts a supported file type within the size limit", () => {
+    expect(() =>
+      validateUploadedFile(
+        "application/pdf",
+        1024 * 1024,
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects a file larger than 2 GB", () => {
+    expect(() =>
+      validateUploadedFile(
+        "application/pdf",
+        2 * 1024 * 1024 * 1024 + 1,
+      ),
+    ).toThrow("File size exceeds the 2 GB limit");
+  });
+
+  it("rejects an unsupported file type", () => {
+    expect(() =>
+      validateUploadedFile(
+        "application/x-executable",
+        1024,
+      ),
+    ).toThrow("File type is not supported");
   });
 });
