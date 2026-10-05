@@ -42,3 +42,7 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Build Docker image
+        working-directory: .
+        run: docker build -t clouddrop-backend:ci ./backend
