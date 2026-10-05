@@ -1,0 +1,18 @@
+services:
+  backend:
+    image: clouddrop-backend:latest
+    container_name: clouddrop-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cloud-drop-db:5432/${POSTGRES_DB}
+      PORT: 5000
+    networks:
+      - clouddrop_default
+
+networks:
+  clouddrop_default:
+    external: true
+
