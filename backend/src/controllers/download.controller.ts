@@ -61,7 +61,7 @@ export const downloadFile = async (
           size: file.size,
         },
         downloadUrl,
-        expiresIn: 300,
+        expiresIn: 600,
       },
     });
   } catch {

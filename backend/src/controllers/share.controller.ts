@@ -60,7 +60,7 @@ export const shareFile = async (
           mimeType: file.mimeType,
         },
         shareUrl,
-        expiresIn: 3600,
+        expiresIn: 10800,
       },
     });
   } catch {

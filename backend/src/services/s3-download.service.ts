@@ -4,7 +4,7 @@ import { s3Client, S3_BUCKET_NAME } from "../config/s3.js";
 
 export const generateDownloadUrl = async (
   s3Key: string,
-  expiresIn = 300,
+  expiresIn = 600,
 ) => {
   const command = new GetObjectCommand({
     Bucket: S3_BUCKET_NAME,
