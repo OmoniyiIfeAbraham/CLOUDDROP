@@ -28,13 +28,13 @@ describe("File validation", () => {
     ).not.toThrow();
   });
 
-  it("rejects a file larger than 100 MB", () => {
+  it("rejects a file larger than 2 GB", () => {
     expect(() =>
       validateUploadedFile(
         "application/pdf",
-        101 * 1024 * 1024,
+        2 * 1024 * 1024 * 1024 + 1,
       ),
-    ).toThrow("File size exceeds the 100 MB limit");
+    ).toThrow("File size exceeds the 2 GB limit");
   });
 
   it("rejects an unsupported file type", () => {

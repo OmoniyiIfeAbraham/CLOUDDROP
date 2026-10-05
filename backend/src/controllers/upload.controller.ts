@@ -87,9 +87,10 @@ export const uploadFile = async (
       });
     }
   } catch (error) {
+     
     if (
       error instanceof Error &&
-      error.message === "File size exceeds the 100 MB limit"
+      error.message === "File size exceeds the 2 GB limit"
     ) {
       res.status(400).json({
         success: false,
