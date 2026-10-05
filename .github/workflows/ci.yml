@@ -9,6 +9,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   backend-ci:
     runs-on: ubuntu-latest
@@ -46,3 +50,21 @@ jobs:
       - name: Build Docker image
         working-directory: .
         run: docker build -t clouddrop-backend:ci ./backend
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker image to GHCR
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/clouddrop-backend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/clouddrop-backend:latest
