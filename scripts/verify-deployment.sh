@@ -3,8 +3,8 @@
 set -e
 
 echo "Checking CloudDrop deployment..."
-
 echo
+
 echo "Checking backend container..."
 
 BACKEND_STATUS=$(docker inspect --format='{{.State.Status}}' clouddrop-backend 2>/dev/null || true)
@@ -28,6 +28,18 @@ if [ "$BACKEND_HEALTH" != "healthy" ]; then
 fi
 
 echo "Backend is healthy."
+
+echo
+echo "Checking deployed backend image..."
+
+BACKEND_IMAGE=$(docker inspect --format='{{.Config.Image}}' clouddrop-backend 2>/dev/null || true)
+
+if [ -z "$BACKEND_IMAGE" ]; then
+  echo "ERROR: Could not determine backend image."
+  exit 1
+fi
+
+echo "Backend image: $BACKEND_IMAGE"
 
 echo
 echo "Checking Nginx container..."
@@ -55,3 +67,4 @@ echo "Health endpoint returned HTTP 200."
 
 echo
 echo "CloudDrop deployment verification successful."
+echo "Running backend image: $BACKEND_IMAGE"
