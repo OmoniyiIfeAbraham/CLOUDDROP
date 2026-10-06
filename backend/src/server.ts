@@ -5,6 +5,7 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/not-found.middleware.js";
 import { validateEnv } from "./utils/env.utils.js";
 import morgan from "morgan";
+import authRoutes from "./routes/auth.routes.js";
 import { filesRoutes } from "./routes/files.routes.js";
 import { categoriesRoutes } from "./routes/categories.routes.js";
 import { dashboardRoutes } from "./routes/dashboard.routes.js";
@@ -26,7 +27,13 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// Auth (Eunice) — register / login / me
+app.use("/api/v1/auth", authRoutes);
+
+// File domain (stubbed for Phase 2) — requires auth via requireAuth
 app.use("/api/v1/files", filesRoutes);
+
+// Categories & dashboard
 app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
 
