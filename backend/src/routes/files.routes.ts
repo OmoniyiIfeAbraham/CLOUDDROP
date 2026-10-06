@@ -7,11 +7,13 @@ import {
   listFiles,
   uploadFile,
 } from "../controllers/files.controller.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireAuth } from "../middleware/require-auth.js";
 
 const filesRoutes = Router();
 
-filesRoutes.use(requireAuth);
+// JWT verification + user population, then presence gate
+filesRoutes.use(authMiddleware, requireAuth);
 
 filesRoutes.post("/", uploadFile);
 filesRoutes.get("/", listFiles);
