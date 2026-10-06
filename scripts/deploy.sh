@@ -4,11 +4,18 @@ set -e
 
 echo "Starting CloudDrop deployment..."
 
-echo "Pulling latest backend image..."
-docker compose pull backend
+IMAGE="${BACKEND_IMAGE:-ghcr.io/omoniyiifeabraham/clouddrop-backend:latest}"
+
+echo "Deployment image: ${IMAGE}"
+
+echo "Pulling backend image..."
+docker pull "$IMAGE"
 
 echo "Starting backend..."
-docker compose up -d backend
+
+export BACKEND_IMAGE="$IMAGE"
+
+docker compose -f docker-compose.prod.yml up -d backend
 
 echo "Waiting for backend health check..."
 
@@ -17,6 +24,9 @@ for i in {1..12}; do
 
   if [ "$STATUS" = "healthy" ]; then
     echo "Backend is healthy."
+    echo
+    echo "CloudDrop deployment completed successfully."
+    echo "Deployed image: ${IMAGE}"
     exit 0
   fi
 
@@ -25,5 +35,8 @@ for i in {1..12}; do
 done
 
 echo "Backend failed health check."
-docker compose logs --tail=100 backend
+echo
+echo "Backend logs:"
+docker compose -f docker-compose.prod.yml logs --tail=100 backend
+
 exit 1
