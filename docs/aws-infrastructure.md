@@ -12,8 +12,18 @@
 - Operating System: **Ubuntu 26.04 LTS**
 - Instance Status: Running
 - EC2 Instance Connect: Verified
+- AWS Systems Manager (SSM): Configured and verified
+- Session Manager: Verified
 - Public IPv4: `18.203.69.190`
 - Private IPv4: `172.31.39.27`
+
+### Docker
+
+Docker has been installed and configured on the CloudDrop production EC2 server.
+
+- Docker: Installed and configured
+- Docker Compose v2: Installed and configured
+- Production environment is ready to run containerized CloudDrop services.
 
 ## S3
 
@@ -28,7 +38,7 @@ The S3 bucket was configured for team file storage.
 - Server-side encryption: SSE-S3
 - Versioning: Disabled
 
-### S3 operations tested
+### S3 Operations Tested
 
 The EC2 instance successfully:
 
@@ -69,6 +79,57 @@ Allowed S3 actions:
 - `s3:DeleteObject`
 
 The permissions are restricted to the CloudDrop S3 bucket and its objects.
+
+### Backend IAM User
+
+- User: `Eunice`
+- Group: `CloudDrop-Backend`
+
+Eunice was configured with controlled access for backend/cloud administration.
+
+### Session Manager Access
+
+A dedicated Session Manager policy was configured for the `CloudDrop-Backend` group.
+
+The policy provides the required permissions to:
+
+- Start a Session Manager session
+- Discover the CloudDrop EC2 instance
+- Check session and instance status
+- Manage the user's own sessions
+- Access the CloudDrop production server through AWS Systems Manager
+
+Session Manager access was restricted to the CloudDrop production EC2 instance.
+
+### GitHub Actions OIDC
+
+A GitHub Actions OIDC identity provider was created in AWS:
+
+- Provider: `token.actions.githubusercontent.com`
+
+A dedicated IAM role was configured for GitHub Actions:
+
+- Role: `CloudDrop-GitHubActions-SSM-Role`
+
+The role is restricted to:
+
+- Repository: `OmoniyiIfeAbraham/CLOUDDROP`
+- Branch: `main`
+- OIDC audience: `sts.amazonaws.com`
+
+### GitHub Actions Deployment Policy
+
+An inline policy was created:
+
+- Policy: `CloudDrop-SSM-Deployment`
+
+The policy allows GitHub Actions to:
+
+- Send SSM commands to the CloudDrop EC2 instance
+- Use `AWS-RunShellScript`
+- Retrieve SSM command execution results
+
+The GitHub Actions deployment setup uses OIDC rather than long-lived AWS access keys.
 
 ## RDS PostgreSQL
 
@@ -112,6 +173,31 @@ The infrastructure review verified:
 - S3 access through the EC2 IAM role
 - Required VPC networking components and routing
 
+## Production Deployment
+
+The CloudDrop backend has been deployed to the production EC2 environment.
+
+- Backend container deployed on EC2
+- Nginx configured as a reverse proxy
+- Production Docker Compose configuration configured
+- Production environment variables configured
+- Backend connected to RDS PostgreSQL
+- Backend connected to S3
+- Backend image deployed from GHCR
+- Backend and Nginx containers running
+- Backend health check passing
+- Deployment verification passing
+
+### Production Health Check
+
+The deployed backend was tested through the EC2 public IP.
+
+Response:
+
+`{"success":true,"message":"CloudDrop API is running"}`
+
+The external health check returned HTTP 200.
+
 ## QA Status
 
 ### Completed
@@ -119,8 +205,11 @@ The infrastructure review verified:
 - EC2 instance deployed and running
 - Ubuntu 26.04 LTS verified
 - EC2 Instance Connect verified
-- IAM role created
-- IAM role attached to EC2
+- AWS Systems Manager configured
+- Session Manager access verified
+- Docker installed and configured
+- Docker Compose v2 installed and configured
+- EC2 IAM role created and attached
 - S3 bucket configured
 - S3 security configuration verified
 - S3 permissions configured
@@ -135,15 +224,27 @@ The infrastructure review verified:
 - SQL query execution from EC2 verified
 - VPC/networking reviewed
 - Security-group configuration reviewed
-- Infrastructure security review completed
+- Backend deployed to production EC2
+- Backend connected to RDS
+- Backend connected to S3
+- Nginx reverse proxy configured
+- Production health check verified
+- External HTTP 200 response verified
+- Eunice IAM user and backend access configured
+- Session Manager permissions configured
+- GitHub Actions OIDC provider created
+- GitHub Actions deployment IAM role configured
+- GitHub Actions SSM deployment policy configured
 
 ## Remaining
 
-- Backend application integration with RDS
-- Backend application integration with S3
-- Full end-to-end application QA
-- Application-level authorization/security testing
-- Production deployment verification
-- Health checks, logging, and monitoring verification
-- Final infrastructure evidence/screenshots
-- Final project documentation
+- Connect the GitHub Actions workflow to the configured AWS OIDC role
+- Test automatic GitHub Actions → EC2 deployment through SSM
+- Test the production rollback process
+- Complete full end-to-end application QA
+- Perform application-level authorization/security testing
+- Verify S3 and PostgreSQL synchronization during complete file operations
+- Complete HTTPS/SSL and domain configuration
+- Verify production logging and monitoring
+- Collect final infrastructure evidence/screenshots
+- Finalize project documentation
