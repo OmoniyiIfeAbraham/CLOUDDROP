@@ -11,11 +11,11 @@ echo "Deployment image: ${IMAGE}"
 echo "Pulling backend image..."
 docker pull "$IMAGE"
 
-echo "Starting backend..."
+echo "Starting backend and Nginx..."
 
 export BACKEND_IMAGE="$IMAGE"
 
-docker compose -f docker-compose.prod.yml up -d backend
+docker compose -f docker-compose.prod.yml up -d backend nginx
 
 echo "Waiting for backend health check..."
 
@@ -24,19 +24,37 @@ for i in {1..12}; do
 
   if [ "$STATUS" = "healthy" ]; then
     echo "Backend is healthy."
-    echo
-    echo "CloudDrop deployment completed successfully."
-    echo "Deployed image: ${IMAGE}"
-    exit 0
+    break
   fi
 
   echo "Backend status: ${STATUS:-starting}"
   sleep 5
 done
 
-echo "Backend failed health check."
-echo
-echo "Backend logs:"
-docker compose -f docker-compose.prod.yml logs --tail=100 backend
+FINAL_STATUS=$(docker inspect --format='{{.State.Health.Status}}' clouddrop-backend 2>/dev/null || true)
 
-exit 1
+if [ "$FINAL_STATUS" != "healthy" ]; then
+  echo "Backend failed health check."
+  echo
+  echo "Backend logs:"
+  docker compose -f docker-compose.prod.yml logs --tail=100 backend
+  exit 1
+fi
+
+echo "Checking Nginx..."
+
+NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' clouddrop-nginx 2>/dev/null || true)
+
+if [ "$NGINX_STATUS" != "running" ]; then
+  echo "Nginx failed to start."
+  echo
+  echo "Nginx logs:"
+  docker compose -f docker-compose.prod.yml logs --tail=100 nginx
+  exit 1
+fi
+
+echo "Nginx is running."
+
+echo
+echo "CloudDrop deployment completed successfully."
+echo "Deployed image: ${IMAGE}"
