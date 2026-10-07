@@ -90,3 +90,25 @@ test("register, restore a session, and sign out", async ({ page, isMobile }) => 
   await page.goto("/files");
   await expect(page).toHaveURL(/\/login$/);
 });
+
+test("an expired token cannot open a protected page", async ({ page }) => {
+  await page.goto("/login");
+  await page.evaluate(() => sessionStorage.setItem("clouddrop.access-token", "expired-token"));
+  await page.goto("/files");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token"))).toBeNull();
+});
+
+test("auth forms reject incomplete details", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText("Enter a valid email address")).toBeVisible();
+  await expect(page.getByText("Use at least 8 characters")).toBeVisible();
+
+  await page.getByRole("link", { name: "Create an account" }).click();
+  await page.getByLabel("Email address").fill("ada@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("securepass123");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("alert")).toContainText("Enter your first and last name.");
+});

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Cloud, Files, House, LogOut, Menu, UploadCloud, X } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../features/auth/auth-context";
 import { USE_MOCK_API } from "../../lib/runtime";
 
@@ -17,7 +16,6 @@ export const AppLayout = () => {
   const sidebarRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const currentTitle = location.pathname.startsWith("/files")
@@ -67,7 +65,6 @@ export const AppLayout = () => {
   }, []);
 
   const signOut = () => {
-    queryClient.clear();
     logout();
     setMobileOpen(false);
     navigate("/login");

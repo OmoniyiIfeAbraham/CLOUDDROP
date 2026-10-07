@@ -42,8 +42,8 @@ const PublicOnly = () => {
 export const App = () => (
   <Routes>
     <Route element={<PublicOnly />}>
-      <Route path="/login" element={<AuthPage mode="login" />} />
-      <Route path="/register" element={<AuthPage mode="register" />} />
+      <Route path="/login" element={<AuthPage key="login" mode="login" />} />
+      <Route path="/register" element={<AuthPage key="register" mode="register" />} />
     </Route>
     <Route element={<Protected />}>
       <Route element={<AppLayout />}>
