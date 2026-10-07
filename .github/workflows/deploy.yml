@@ -9,9 +9,31 @@ on:
         default: "latest"
 
 permissions:
+  id-token: write
   contents: read
   packages: read
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_SSM_ROLE_ARN }}
+          aws-region: eu-west-1
+
+      - name: Deploy to EC2 through SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "i-057c4c651255b57e7" \
+            --document-name "AWS-RunShellScript" \
+            --comment "CloudDrop deployment from GitHub Actions" \
+            --parameters 'commands=[
+              "cd /opt/clouddrop",
+              "export BACKEND_IMAGE=ghcr.io/omoniyiifeabraham/clouddrop-backend:${{ github.event.inputs.image_tag }}",
+              "./scripts/deploy.sh",
+              "./scripts/verify-deployment.sh"
+            ]' \
+            --region eu-west-1
