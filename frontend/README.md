@@ -4,6 +4,8 @@ React, TypeScript, and Vite application for CloudDrop's authenticated file works
 
 ## Run locally
 
+Use Node.js 24 (recommended; `.nvmrc`) or Node.js 22.12 or newer in the 22.x line. The system Node.js 18 is not supported by this dependency set. With nvm installed, run `nvm use` from `frontend/` before the commands below.
+
 ```bash
 cd frontend
 npm ci
