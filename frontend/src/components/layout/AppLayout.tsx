@@ -78,6 +78,7 @@ export const AppLayout = () => {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#workspace-main">Skip to main content</a>
       <aside id="primary-navigation" ref={sidebarRef} className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} aria-label="Primary navigation">
         <div className="sidebar__brand">
           <Link to="/" onClick={navigateToContent} className="brand">
@@ -123,7 +124,7 @@ export const AppLayout = () => {
             <Link className="button button--primary button--small" to="/upload"><UploadCloud size={16} /> Upload files</Link>
           </div>
         </header>
-        <main ref={mainRef} className="main-content" tabIndex={-1} aria-label={currentTitle}><Outlet /></main>
+        <main id="workspace-main" ref={mainRef} className="main-content" tabIndex={-1} aria-label={currentTitle}><Outlet /></main>
       </div>
     </div>
   );

@@ -50,7 +50,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
 
   return (
     <div className="auth-shell">
-      <div className="auth-panel">
+      <main className="auth-panel">
         <Link className="brand auth-brand" to="/">
           <span className="brand__mark"><Cloud size={23} strokeWidth={2.4} /></span>
           <span>CloudDrop</span>
@@ -75,7 +75,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
           <p className="auth-switch">{isRegister ? "Already have an account?" : "New to CloudDrop?"} <Link to={isRegister ? "/login" : "/register"}>{isRegister ? "Sign in" : "Create an account"}</Link></p>
         </div>
         <div className="auth-panel__foot"><LockKeyhole size={15} /> Private file storage</div>
-      </div>
+      </main>
       <div className="auth-visual" aria-hidden="true">
         <div className="auth-visual__top">ONE PLACE FOR EVERY FILE</div>
         <div className="auth-visual__scene">

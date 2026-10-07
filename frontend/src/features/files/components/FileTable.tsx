@@ -40,7 +40,8 @@ export const FileTable = ({ files, onDownload, onShare, onDelete, busyFileId, co
                 <FileGlyph file={file} />
                 <div className="file-name-cell__text">
                   <Link to={`/files/${encodeURIComponent(file.id)}`} title={file.originalName}>{file.originalName}</Link>
-                  <span>{file.mimeType}</span>
+                  <span className="file-name-cell__type">{file.mimeType}</span>
+                  <span className="file-name-cell__mobile-size">{formatBytes(file.size)}</span>
                 </div>
               </div>
             </td>
