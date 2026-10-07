@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createApiClient,
   type FetchImplementation,
@@ -161,5 +161,31 @@ describe("ApiClient", () => {
 
     await expect(client.request("/files")).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
     expect(expired).toBe(true);
+  });
+
+  it("passes the request token to the session owner", async () => {
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "request-token",
+      fetchImpl: async () => response(401, failureBody("UNAUTHORIZED", "Expired")),
+      onUnauthorized,
+    });
+
+    await expect(client.request("/files")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(onUnauthorized).toHaveBeenCalledExactlyOnceWith("request-token");
+  });
+
+  it("does not expire an existing session for an optional login request", async () => {
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "current-token",
+      fetchImpl: async () => response(401, failureBody("INVALID_CREDENTIALS", "Invalid credentials")),
+      onUnauthorized,
+    });
+
+    await expect(client.request("/auth/login", { auth: "optional", method: "POST" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

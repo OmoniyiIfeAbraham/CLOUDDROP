@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_FILE_SIZE, uploadFileHttp, validateUploadFile } from "./upload-service";
 import { sessionToken } from "../../lib/runtime";
 import { SESSION_EXPIRED_EVENT } from "../../lib/api";
+import { normalFileFixtures } from "../files/api/files.fixtures";
 
 class FakeRequest {
   static current: FakeRequest;
@@ -84,8 +85,8 @@ describe("HTTP upload", () => {
     expect((request.body as FormData).get("category")).toBe("Documents");
     request.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 2 } as ProgressEvent);
     expect(onProgress).toHaveBeenCalledWith(50);
-    request.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: { file: { id: "file-1" } } }));
-    await expect(pending).resolves.toMatchObject({ id: "file-1" });
+    request.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: { file: { ...normalFileFixtures[0], s3Key: "private/key" } } }));
+    await expect(pending).resolves.toEqual(normalFileFixtures[0]);
   });
 
   it("normalizes a non-JSON 401 and expires the session", async () => {
@@ -97,6 +98,19 @@ describe("HTTP upload", () => {
     await expect(pending).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
     expect(sessionToken.get()).toBeNull();
     expect(listener).toHaveBeenCalledOnce();
+    window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
+  });
+
+  it("does not expire a replacement session when an old upload gets a 401", async () => {
+    sessionToken.set("old-token");
+    const listener = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+    const pending = uploadFileHttp(file, "Documents");
+    sessionToken.set("new-token");
+    FakeRequest.current.respond(401, "Unauthorized");
+    await expect(pending).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(sessionToken.get()).toBe("new-token");
+    expect(listener).not.toHaveBeenCalled();
     window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
   });
 
@@ -119,6 +133,10 @@ describe("HTTP upload", () => {
     const missingFile = uploadFileHttp(file, "Documents");
     FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: {} }));
     await expect(missingFile).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 201 });
+
+    const malformedFile = uploadFileHttp(file, "Documents");
+    FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: { file: { id: "file-1" } } }));
+    await expect(malformedFile).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
 
     const invalid = uploadFileHttp(file, "Documents");
     FakeRequest.current.respond(400, JSON.stringify({ success: false, message: "Invalid upload", error: { code: "INVALID_UPLOAD" } }));

@@ -58,15 +58,22 @@ const demoUser: User = {
   lastName: "Okafor",
   email: "demo@clouddrop.app",
 };
+const demoAccounts = new Map<string, User>([[demoUser.email, demoUser]]);
+
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
 export const mockAuthService: AuthService = {
   async login({ email, password }) {
     if (!email.trim() || !password.trim()) {
       throw new ApiError({ message: "Email and password are required.", code: "BAD_REQUEST", status: 400 });
     }
-    const user = email === demoUser.email
-      ? demoUser
-      : { ...demoUser, email };
+    const normalizedEmail = normalizeEmail(email);
+    const user = demoAccounts.get(normalizedEmail) ?? {
+      ...demoUser,
+      id: `demo-user:${normalizedEmail}`,
+      email: normalizedEmail,
+    };
+    demoAccounts.set(normalizedEmail, user);
     sessionStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
     return { user, token: DEMO_TOKEN };
   },
@@ -74,7 +81,9 @@ export const mockAuthService: AuthService = {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
       throw new ApiError({ message: "All fields are required.", code: "BAD_REQUEST", status: 400 });
     }
-    const user = { id: crypto.randomUUID(), firstName, lastName, email };
+    const normalizedEmail = normalizeEmail(email);
+    const user = { id: `demo-user:${normalizedEmail}`, firstName, lastName, email: normalizedEmail };
+    demoAccounts.set(normalizedEmail, user);
     sessionStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
     return { user, token: DEMO_TOKEN };
   },

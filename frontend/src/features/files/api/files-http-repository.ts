@@ -9,14 +9,7 @@ import type {
   ShareResult,
 } from "../model/file.types";
 import { uploadFileHttp } from "../../upload/upload-service";
-
-interface FilesPayload {
-  files: FileRecord[];
-}
-
-interface FilePayload {
-  file: FileRecord;
-}
+import { parseDownloadResult, parseFilePayload, parseFilesPayload, parseShareResult } from "./file-contracts";
 
 const filePath = (fileId: string): string =>
   "/files/" + encodeURIComponent(fileId);
@@ -31,36 +24,33 @@ export const createHttpFilesRepository = (
   client: ApiClient,
 ): FilesRepository => ({
   async listFiles(): Promise<FileRecord[]> {
-    const data = await client.request<FilesPayload>("/files");
-    return data.files;
+    return parseFilesPayload(await client.request<unknown>("/files"));
   },
 
   async searchFiles(search: string): Promise<FileRecord[]> {
     const normalizedSearch = search.trim();
 
     if (!normalizedSearch) {
-      const data = await client.request<FilesPayload>("/files");
-      return data.files;
+      return parseFilesPayload(await client.request<unknown>("/files"));
     }
 
-    const data = await client.request<FilesPayload>("/files/search", {
+    const data = await client.request<unknown>("/files/search", {
       query: { search: normalizedSearch },
     });
 
-    return data.files;
+    return parseFilesPayload(data);
   },
 
   async getFile(fileId: string): Promise<FileRecord> {
-    const data = await client.request<FilePayload>(filePath(fileId));
-    return data.file;
+    return parseFilePayload(await client.request<unknown>(filePath(fileId)));
   },
 
-  getDownload(fileId: string): Promise<DownloadResult> {
-    return client.request<DownloadResult>(filePath(fileId) + "/download");
+  async getDownload(fileId: string): Promise<DownloadResult> {
+    return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download"));
   },
 
-  getTemporaryShare(fileId: string): Promise<ShareResult> {
-    return client.request<ShareResult>(filePath(fileId) + "/share");
+  async getTemporaryShare(fileId: string): Promise<ShareResult> {
+    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share"));
   },
 
   async deleteFile(fileId: string): Promise<void> {

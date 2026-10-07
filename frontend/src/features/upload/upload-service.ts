@@ -3,6 +3,7 @@ import { isApiFailure, isApiSuccess } from "../files/api/contracts";
 import type { Category, FileRecord } from "../files/model/file.types";
 import { API_BASE_URL, sessionToken } from "../../lib/runtime";
 import { SESSION_EXPIRED_EVENT } from "../../lib/api";
+import { parseFileRecord } from "../files/api/file-contracts";
 
 export const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
 
@@ -62,8 +63,10 @@ export const uploadFileHttp = (
   request.onabort = () => reject(new ApiError({ message: "Upload was cancelled.", code: "UPLOAD_CANCELLED" }));
   request.onload = () => {
     if (request.status === 401) {
-      sessionToken.clear();
-      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+      if (sessionToken.get() === token) {
+        sessionToken.clear();
+        window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+      }
       reject(new ApiError({ message: "Session expired.", code: "UNAUTHORIZED", status: 401 }));
       return;
     }
@@ -88,7 +91,11 @@ export const uploadFileHttp = (
       reject(new ApiError({ message: "The API returned an invalid response.", code: "INVALID_RESPONSE", status: request.status }));
       return;
     }
-    resolve(payload.data.file);
+    try {
+      resolve(parseFileRecord(payload.data.file));
+    } catch (error) {
+      reject(error);
+    }
   };
   request.send(body);
 });

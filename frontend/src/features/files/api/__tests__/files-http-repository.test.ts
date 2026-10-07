@@ -11,12 +11,38 @@ const success = (data?: unknown): FetchResponse => ({
 });
 
 describe("HTTP file actions", () => {
+  it("validates list and search data and removes backend-only metadata", async () => {
+    const replies = [success({ files: [{ ...file, s3Key: "private/key" }] }), success({ files: [{ ...file, s3Key: "private/key" }] })];
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "token-123",
+      fetchImpl: async () => replies.shift()!,
+    });
+    const repository = createHttpFilesRepository(client);
+
+    await expect(repository.listFiles()).resolves.toEqual([file]);
+    await expect(repository.searchFiles("proposal")).resolves.toEqual([file]);
+  });
+
+  it("rejects malformed file payloads before pages render them", async () => {
+    const replies = [success({ files: "not-an-array" }), success({ file: { ...file, category: "Unknown" } })];
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "token-123",
+      fetchImpl: async () => replies.shift()!,
+    });
+    const repository = createHttpFilesRepository(client);
+
+    await expect(repository.listFiles()).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    await expect(repository.getFile(file.id)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
   it("uses the implemented detail, download, share, and delete routes", async () => {
     const calls: Array<{ path: string; method: string | undefined; authorization: string | undefined }> = [];
     const results = [
-      success({ file }),
-      success({ file, downloadUrl: "https://example.invalid/download", expiresIn: 600 }),
-      success({ file, shareUrl: "https://example.invalid/share", expiresIn: 10_800 }),
+      success({ file: { ...file, s3Key: "private/key" } }),
+      success({ file: { ...file, s3Key: "private/key" }, downloadUrl: "https://example.invalid/download", expiresIn: 600 }),
+      success({ file: { ...file, s3Key: "private/key" }, shareUrl: "https://example.invalid/share", expiresIn: 10_800 }),
       success(),
     ];
     const client = createApiClient({
@@ -30,7 +56,11 @@ describe("HTTP file actions", () => {
     const repository = createHttpFilesRepository(client);
 
     expect(await repository.getFile(file.id)).toEqual(file);
-    expect((await repository.getDownload(file.id)).expiresIn).toBe(600);
+    expect(await repository.getDownload(file.id)).toEqual({
+      file: { id: file.id, originalName: file.originalName, mimeType: file.mimeType, size: file.size },
+      downloadUrl: "https://example.invalid/download",
+      expiresIn: 600,
+    });
     expect((await repository.getTemporaryShare(file.id)).expiresIn).toBe(10_800);
     await expect(repository.deleteFile(file.id)).resolves.toBeUndefined();
     expect(calls).toEqual([

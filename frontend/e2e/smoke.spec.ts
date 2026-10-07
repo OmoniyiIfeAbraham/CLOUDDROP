@@ -96,6 +96,38 @@ test("register, restore a session, and sign out", async ({ page, isMobile }) => 
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("demo accounts keep their file libraries separate", async ({ page, isMobile }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email address").fill("demo@clouddrop.app");
+  await page.getByLabel("Password", { exact: true }).fill("securepass123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("link", { name: "My files" }).click();
+  await expect(page.getByRole("link", { name: "capstone-proposal.pdf" })).toBeVisible();
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+
+  await page.getByRole("link", { name: "Create an account" }).click();
+  await page.getByLabel("First name").fill("Ada");
+  await page.getByLabel("Last name").fill("Lovelace");
+  await page.getByLabel("Email address").fill("ada@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("securepass123");
+  await page.getByRole("button", { name: "Create account" }).click();
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("link", { name: "My files" }).click();
+  await expect(page.getByRole("heading", { name: "Your library is empty" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "capstone-proposal.pdf" })).toHaveCount(0);
+
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByLabel("Email address").fill("demo@clouddrop.app");
+  await page.getByLabel("Password", { exact: true }).fill("securepass123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("link", { name: "My files" }).click();
+  await expect(page.getByRole("link", { name: "capstone-proposal.pdf" })).toBeVisible();
+});
+
 test("an expired token cannot open a protected page", async ({ page }) => {
   await page.goto("/login");
   await page.evaluate(() => sessionStorage.setItem("clouddrop.access-token", "expired-token"));

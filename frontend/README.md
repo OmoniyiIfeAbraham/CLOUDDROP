@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open the URL printed by Vite. Development defaults to an in-browser demo (`.env.development`), so the app is usable without the backend. Sign in with any valid email and a password of at least eight characters. Demo data and uploads are local to the running page; refresh resets file changes. The demo is not an authentication or storage service.
+Open the URL printed by Vite. Development defaults to an in-browser demo (`.env.development`), so the app is usable without the backend. Sign in with any valid email and a password of at least eight characters. `demo@clouddrop.app` starts with sample files; other demo accounts start empty. Each account's file changes stay separate in the running page, and refresh resets them. The demo is not an authentication or storage service.
 
 To use the backend, create a local, untracked `frontend/.env.development.local` containing:
 

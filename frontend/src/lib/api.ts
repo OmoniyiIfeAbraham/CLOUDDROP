@@ -6,7 +6,8 @@ export const SESSION_EXPIRED_EVENT = "clouddrop:session-expired";
 export const apiClient = createApiClient({
   baseUrl: API_BASE_URL,
   getToken: () => sessionToken.get(),
-  onUnauthorized: () => {
+  onUnauthorized: (token) => {
+    if (sessionToken.get() !== token) return;
     sessionToken.clear();
     window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
   },

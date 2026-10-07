@@ -30,7 +30,7 @@ export interface ApiClientOptions {
   baseUrl: string;
   getToken: TokenGetter;
   fetchImpl?: FetchImplementation;
-  onUnauthorized?: () => void;
+  onUnauthorized?: (token: string) => void;
 }
 
 export interface ApiClientRequestOptions {
@@ -164,7 +164,7 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
         rawBody = await response.text();
       } catch {
         if (response.status === 401) {
-          options.onUnauthorized?.();
+          if (auth === "required" && token) options.onUnauthorized?.(token);
           throw new ApiError({
             message: "Authentication is required.",
             code: "UNAUTHORIZED",
@@ -183,7 +183,7 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          options.onUnauthorized?.();
+          if (auth === "required" && token) options.onUnauthorized?.(token);
           throw new ApiError({
             message: isApiFailure(payload) ? payload.message : "Authentication is required.",
             code: "UNAUTHORIZED",

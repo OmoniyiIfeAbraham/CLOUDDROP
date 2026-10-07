@@ -2,6 +2,7 @@ import { ApiError } from "../features/files/api/api-error";
 
 const knownMessages: Record<string, string> = {
   UNAUTHORIZED: "Your session has ended. Please sign in again.",
+  INVALID_RESPONSE: "The server returned unexpected data. Please try again.",
   NETWORK_ERROR: "Could not connect. Check your connection and try again.",
   NOT_FOUND: "That file is no longer available.",
   FILE_TOO_LARGE: "This file exceeds the 2 GB upload limit.",
