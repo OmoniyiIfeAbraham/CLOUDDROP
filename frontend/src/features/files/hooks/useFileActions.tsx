@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, Link2, Trash2 } from "lucide-react";
 import { Dialog } from "../../../components/ui/Dialog";
@@ -18,9 +18,11 @@ export const useFileActions = () => {
   const repository = useFilesRepository();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const { notify } = useToast();
   const [busyFileId, setBusyFileId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FileRecord | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [shareTarget, setShareTarget] = useState<FileRecord | null>(null);
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
   const [shareError, setShareError] = useState("");
@@ -67,9 +69,9 @@ export const useFileActions = () => {
     setShareLoading(true);
     try {
       const result = await repository.getTemporaryShare(file.id);
-      requireHttpsUrl(result.shareUrl);
+      const shareUrl = requireHttpsUrl(result.shareUrl);
       if (requestId === shareRequestId.current) {
-        setShareResult(result);
+        setShareResult({ ...result, shareUrl });
         setShareExpiresAt(Date.now() + result.expiresIn * 1000);
       }
     } catch (error) {
@@ -79,6 +81,11 @@ export const useFileActions = () => {
     } finally {
       if (requestId === shareRequestId.current) setShareLoading(false);
     }
+  };
+
+  const requestDelete = (file: FileRecord) => {
+    setDeleteError("");
+    setDeleteTarget(file);
   };
 
   const copyShare = async () => {
@@ -100,15 +107,17 @@ export const useFileActions = () => {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     const file = deleteTarget;
+    setDeleteError("");
     setBusyFileId(file.id);
     try {
       await repository.deleteFile(file.id);
       await queryClient.invalidateQueries({ queryKey: ["files"] });
       setDeleteTarget(null);
       notify(`${file.originalName} deleted.`);
-      if (window.location.pathname === `/files/${encodeURIComponent(file.id)}`) navigate("/files");
+      if (location.pathname === `/files/${encodeURIComponent(file.id)}`) navigate("/files");
     } catch (error) {
-      notify(userMessage(error, "The file could not be deleted."), "error");
+      const message = userMessage(error, "The file could not be deleted.");
+      setDeleteError(message);
     } finally {
       setBusyFileId(null);
     }
@@ -120,7 +129,7 @@ export const useFileActions = () => {
         <div className="dialog__body">
           <p className="dialog__intro">Create a temporary link for <strong>{shareTarget?.originalName}</strong>.</p>
           {shareLoading && <div className="inline-progress" role="status"><span className="spinner" /> Creating secure link...</div>}
-          {shareError && <div className="inline-alert" role="alert">{shareError}</div>}
+          {shareError && <><div className="inline-alert" role="alert">{shareError}</div><button className="button button--secondary" type="button" onClick={() => { if (shareTarget) void share(shareTarget); }}>Create new link</button></>}
           {shareResult && (
             <>
               <label className="field"><span>Temporary link</span><input readOnly value={shareResult.shareUrl} onFocus={(event) => event.currentTarget.select()} /></label>
@@ -136,6 +145,7 @@ export const useFileActions = () => {
       <Dialog title="Delete file?" open={!!deleteTarget} onClose={() => { if (!busyFileId) setDeleteTarget(null); }}>
         <div className="dialog__body">
           <p className="dialog__intro">Delete <strong>{deleteTarget?.originalName}</strong>? This removes the stored file and cannot be undone.</p>
+          {deleteError && <div className="inline-alert" role="alert">{deleteError}</div>}
           <div className="dialog__actions">
             <button className="button button--secondary" type="button" onClick={() => setDeleteTarget(null)} disabled={!!busyFileId}>Cancel</button>
             <button className="button button--danger" type="button" onClick={confirmDelete} disabled={!!busyFileId}><Trash2 size={16} /> {busyFileId ? "Deleting..." : "Delete file"}</button>
@@ -145,5 +155,5 @@ export const useFileActions = () => {
     </>
   );
 
-  return { download, share, requestDelete: setDeleteTarget, busyFileId, dialogs };
+  return { download, share, requestDelete, busyFileId, dialogs };
 };

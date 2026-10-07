@@ -21,7 +21,7 @@ export const Dialog = ({ title, open, onClose, children, size = "normal" }: Dial
   }, [open]);
 
   return (
-    <dialog ref={ref} className={`dialog dialog--${size}`} onClose={onClose} onCancel={onClose} aria-label={title}>
+    <dialog ref={ref} className={`dialog dialog--${size}`} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }} aria-label={title}>
       <div className="dialog__header">
         <h2>{title}</h2>
         <button className="icon-button" type="button" onClick={onClose} aria-label="Close dialog" title="Close dialog"><X size={18} /></button>
