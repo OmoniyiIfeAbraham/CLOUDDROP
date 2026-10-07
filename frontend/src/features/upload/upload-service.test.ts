@@ -109,4 +109,19 @@ describe("HTTP upload", () => {
     FakeRequest.current.onerror?.();
     await expect(network).rejects.toMatchObject({ code: "NETWORK_ERROR", retryable: true });
   });
+
+  it("rejects malformed responses and non-retryable client errors", async () => {
+    sessionToken.set("token");
+    const malformed = uploadFileHttp(file, "Documents");
+    FakeRequest.current.respond(502, "<html>Bad gateway</html>");
+    await expect(malformed).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 502 });
+
+    const missingFile = uploadFileHttp(file, "Documents");
+    FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: {} }));
+    await expect(missingFile).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 201 });
+
+    const invalid = uploadFileHttp(file, "Documents");
+    FakeRequest.current.respond(400, JSON.stringify({ success: false, message: "Invalid upload", error: { code: "INVALID_UPLOAD" } }));
+    await expect(invalid).rejects.toMatchObject({ code: "INVALID_UPLOAD", status: 400, retryable: false });
+  });
 });

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, FileUp, Plus, UploadCloud, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFilesRepository } from "../features/files/api/files-context";
+import { isApiError } from "../features/files/api/api-error";
 import { FILE_CATEGORIES } from "../features/files/model/file.types";
 import type { Category } from "../features/files/model/file.types";
 import { validateUploadFile } from "../features/upload/upload-service";
@@ -73,7 +74,7 @@ export const UploadPage = () => {
         updateItem(item.id, { status: "complete", progress: 100 });
         completed += 1;
       } catch (error) {
-        updateItem(item.id, { status: "error", error: userMessage(error, "Upload failed. Please try again."), retryable: true });
+        updateItem(item.id, { status: "error", error: userMessage(error, "Upload failed. Please try again."), retryable: !isApiError(error) || error.retryable });
       }
     }
     if (completed) {
@@ -116,7 +117,7 @@ export const UploadPage = () => {
         <aside className="upload-settings" aria-label="Upload settings">
           <h2>Upload settings</h2>
           <p>Choose where these files belong.</p>
-          <label className="field"><span>Category <span aria-hidden="true">*</span></span><select value={category} onChange={(event) => { setCategory(event.target.value as Category | ""); setFormError(""); }}><option value="">Select a category</option>{FILE_CATEGORIES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label className="field"><span>Category <span aria-hidden="true">*</span></span><select value={category} disabled={uploading} onChange={(event) => { setCategory(event.target.value as Category | ""); setFormError(""); }}><option value="">Select a category</option>{FILE_CATEGORIES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <p className="upload-settings__hint">The selected category applies to all files in this queue.</p>
           {formError && <div className="inline-alert" role="alert">{formError}</div>}
           <button type="button" className="button button--primary upload-settings__submit" onClick={uploadAll} disabled={uploading || !readyCount}><UploadCloud size={18} /> {uploading ? "Uploading..." : `Upload ${readyCount} ${readyCount === 1 ? "file" : "files"}`}</button>
