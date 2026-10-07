@@ -109,6 +109,7 @@ test("auth forms reject incomplete details", async ({ page }) => {
   await expect(page.getByText("Use at least 8 characters")).toBeVisible();
 
   await page.getByRole("link", { name: "Create an account" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   await page.getByLabel("Email address").fill("ada@example.com");
   await page.getByLabel("Password", { exact: true }).fill("securepass123");
   await page.getByRole("button", { name: "Create account" }).click();
