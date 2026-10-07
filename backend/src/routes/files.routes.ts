@@ -9,13 +9,14 @@ import {
 } from "../controllers/files.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireAuth } from "../middleware/require-auth.js";
+import { upload } from "../middleware/upload.middleware.js";
 
 const filesRoutes = Router();
 
 // JWT verification + user population, then presence gate
 filesRoutes.use(authMiddleware, requireAuth);
 
-filesRoutes.post("/", uploadFile);
+filesRoutes.post("/", upload.single("file"), uploadFile);
 filesRoutes.get("/", listFiles);
 filesRoutes.get("/:id", getFile);
 filesRoutes.get("/:id/download", downloadFile);
