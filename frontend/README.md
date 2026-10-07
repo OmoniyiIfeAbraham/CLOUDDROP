@@ -36,6 +36,14 @@ npm run test:e2e
 
 Playwright also needs the host's Chromium system libraries. The browser suite runs against the demo Vite server and checks desktop and mobile flows. The production build is emitted to `frontend/dist/`.
 
+To check authentication against a running local backend on port 5000, use a backend database intended for testing, then run:
+
+```bash
+VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-auth.spec.ts
+```
+
+This opt-in test creates a unique account for each browser project and checks registration, session restoration, logout, login, and expired-token handling. It is skipped in the default demo-mode suite. A deployed backend still needs a separate environment check.
+
 ## API integration
 
 The live frontend targets these provisional routes on the backend feature branch: `/auth/register`, `/auth/login`, `/auth/me`, `/files`, `/files/search`, `/files/:id`, `/files/upload`, `/files/:id/download`, `/files/:id/share`, and `/files/:id` DELETE, all under `/api/v1`. Uploads use one multipart request per file with `file` and `category` fields. Downloads and sharing request a fresh presigned URL per action.
