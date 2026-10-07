@@ -44,6 +44,14 @@ VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-a
 
 This opt-in test creates a unique account for each browser project and checks registration, session restoration, logout, login, and expired-token handling. It is skipped in the default demo-mode suite. A deployed backend still needs a separate environment check.
 
+To check the file library's empty-list and search responses through that backend, run:
+
+```bash
+VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-files.spec.ts
+```
+
+The file-library test also creates unique test users. Populated file lists and category filtering need backend test data; the current backend does not offer server-side category filtering or pagination.
+
 ## API integration
 
 The live frontend targets these provisional routes on the backend feature branch: `/auth/register`, `/auth/login`, `/auth/me`, `/files`, `/files/search`, `/files/:id`, `/files/upload`, `/files/:id/download`, `/files/:id/share`, and `/files/:id` DELETE, all under `/api/v1`. Uploads use one multipart request per file with `file` and `category` fields. Downloads and sharing request a fresh presigned URL per action.

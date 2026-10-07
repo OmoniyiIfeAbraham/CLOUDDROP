@@ -37,6 +37,8 @@ export const FilesPage = () => {
   const totalPages = Math.max(1, Math.ceil(visibleFiles.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageFiles = visibleFiles.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const isSearchSettling = search.trim() !== debouncedSearch;
+  const showLoading = isPending || isSearchSettling;
   const noFilters = !debouncedSearch && category === "All";
 
   return (
@@ -47,11 +49,11 @@ export const FilesPage = () => {
       </div>
       <section aria-label="File library">
         <div className="library-toolbar">
-          <label className="search-field"><Search size={19} /><span className="sr-only">Search files</span><input type="search" placeholder="Search by file name" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />{search && <button type="button" className="icon-button" aria-label="Clear search" title="Clear search" onClick={() => { setSearch(""); setPage(1); }}><X size={16} /></button>}</label>
+          <label className="search-field"><Search size={19} /><span className="sr-only">Search files</span><input type="search" placeholder="Search by file name" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />{search && <button type="button" className="icon-button" aria-label="Clear search" title="Clear search" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}><X size={16} /></button>}</label>
           <label className="filter-field"><SlidersHorizontal size={18} /><span className="sr-only">Category</span><select value={category} onChange={(event) => { setCategory(event.target.value as Category | "All"); setPage(1); }}><option value="All">All categories</option>{FILE_CATEGORIES.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
         </div>
-        <div className="library-summary"><span>{isPending ? "Loading files..." : `${visibleFiles.length} ${visibleFiles.length === 1 ? "file" : "files"}`}{isFetching && !isPending && <span className="refresh-label"> Updating...</span>}</span><span>Sorted by newest</span></div>
-        {isPending ? <LoadingRows /> : isError ? (
+        <div className="library-summary"><span>{isSearchSettling ? "Searching..." : isPending ? "Loading files..." : isError ? "File count unavailable" : `${visibleFiles.length} ${visibleFiles.length === 1 ? "file" : "files"}`}{isFetching && !showLoading && !isError && <span className="refresh-label"> Updating...</span>}</span><span>Sorted by newest</span></div>
+        {showLoading ? <LoadingRows /> : isError ? (
           <StatusView kind="error" title="Files unavailable" description={userMessage(error)} onRetry={() => refetch()} />
         ) : visibleFiles.length === 0 ? (
           noFilters ? <StatusView kind="empty" title="Your library is empty" description="Your files will appear here after your first upload." action={<Link className="button button--primary" to="/upload"><UploadCloud size={17} /> Upload a file</Link>} /> : <StatusView kind="empty" title="No matching files" description="Try a different search or category." action={<button type="button" className="button button--secondary" onClick={() => { setSearch(""); setDebouncedSearch(""); setCategory("All"); setPage(1); }}>Clear filters</button>} />
