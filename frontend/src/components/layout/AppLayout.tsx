@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Cloud, Files, House, LogOut, Menu, UploadCloud, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,9 @@ const navItems = [
 export const AppLayout = () => {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,6 +25,46 @@ export const AppLayout = () => {
     : location.pathname.startsWith("/upload")
       ? "Upload"
       : "Overview";
+
+  const closeNavigation = () => {
+    setMobileOpen(false);
+    window.requestAnimationFrame(() => menuRef.current?.focus());
+  };
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileOpen(false);
+        window.requestAnimationFrame(() => menuRef.current?.focus());
+      }
+      if (event.key !== "Tab") return;
+      const focusable = sidebarRef.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled])");
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 760px)");
+    const closeOnWideScreen = () => {
+      if (!mobile.matches) setMobileOpen(false);
+    };
+    mobile.addEventListener("change", closeOnWideScreen);
+    return () => mobile.removeEventListener("change", closeOnWideScreen);
+  }, []);
 
   const signOut = () => {
     queryClient.clear();
@@ -32,13 +75,13 @@ export const AppLayout = () => {
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} aria-label="Primary navigation">
+      <aside id="primary-navigation" ref={sidebarRef} className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} aria-label="Primary navigation">
         <div className="sidebar__brand">
-          <Link to="/" onClick={() => setMobileOpen(false)} className="brand">
+          <Link to="/" onClick={closeNavigation} className="brand">
             <span className="brand__mark"><Cloud size={22} strokeWidth={2.4} /></span>
             <span>CloudDrop</span>
           </Link>
-          <button className="icon-button sidebar__close" type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation"><X size={20} /></button>
+          <button ref={closeRef} className="icon-button sidebar__close" type="button" onClick={closeNavigation} aria-label="Close navigation"><X size={20} /></button>
         </div>
         <p className="sidebar__group">Workspace</p>
         <nav className="sidebar__nav">
@@ -47,7 +90,7 @@ export const AppLayout = () => {
               key={to}
               to={to}
               end={end}
-              onClick={() => setMobileOpen(false)}
+              onClick={closeNavigation}
               className={({ isActive }) => `sidebar__link ${isActive ? "sidebar__link--active" : ""}`}
             >
               <Icon size={19} strokeWidth={1.9} />
@@ -63,11 +106,11 @@ export const AppLayout = () => {
           <button className="sidebar__link sidebar__signout" type="button" onClick={signOut}><LogOut size={18} /> Sign out</button>
         </div>
       </aside>
-      {mobileOpen && <button className="sidebar-backdrop" aria-label="Close navigation" type="button" onClick={() => setMobileOpen(false)} />}
-      <div className="app-main">
+      {mobileOpen && <button className="sidebar-backdrop" aria-label="Close navigation" type="button" onClick={closeNavigation} />}
+      <div className="app-main" inert={mobileOpen}>
         <header className="topbar">
           <div className="topbar__left">
-            <button className="icon-button topbar__menu" type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={21} /></button>
+            <button ref={menuRef} className="icon-button topbar__menu" type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-controls="primary-navigation" aria-expanded={mobileOpen}><Menu size={21} /></button>
             <span className="topbar__crumb">Workspace</span>
             <span className="topbar__slash">/</span>
             <strong>{currentTitle}</strong>

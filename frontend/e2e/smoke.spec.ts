@@ -12,6 +12,10 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
 
   if (isMobile) {
     await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("button", { name: "Close navigation" }).first()).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Open navigation" })).toBeFocused();
+    await page.getByRole("button", { name: "Open navigation" }).click();
   }
   await page.getByRole("link", { name: "My files" }).click();
   await expect(page.getByRole("heading", { name: "My files" })).toBeVisible();
