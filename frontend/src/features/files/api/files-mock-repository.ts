@@ -126,6 +126,25 @@ export const createMockFilesRepository = (
       files = files.filter((file) => file.id !== fileId);
     },
 
+    async uploadFile(file: File, category: Category, onProgress?: (percent: number) => void): Promise<FileRecord> {
+      onProgress?.(25);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      onProgress?.(85);
+      const now = new Date().toISOString();
+      const record: FileRecord = {
+        id: "mock-upload-" + crypto.randomUUID(),
+        originalName: file.name,
+        mimeType: file.type,
+        size: file.size,
+        category,
+        createdAt: now,
+        updatedAt: now,
+      };
+      files = [record, ...files];
+      onProgress?.(100);
+      return cloneFile(record);
+    },
+
     async getCategories(): Promise<Category[]> {
       failWhenConfigured("categories");
       return [...categories];

@@ -13,6 +13,7 @@ export interface FilesRepository {
   getDownload(fileId: string): Promise<DownloadResult>;
   getTemporaryShare(fileId: string): Promise<ShareResult>;
   deleteFile(fileId: string): Promise<void>;
+  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void): Promise<FileRecord>;
   getCategories(): Promise<Category[]>;
   getDashboardStats(): Promise<DashboardStats>;
 }

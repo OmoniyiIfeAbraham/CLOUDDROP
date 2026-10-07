@@ -29,7 +29,7 @@ const failureBody = (code: string, message: string): string =>
 
 describe("ApiClient", () => {
   it("adds the Bearer token and returns only envelope data", async () => {
-    const requests: Array<{ input: string; init?: FetchRequestInit }> = [];
+    const requests: Array<{ input: string; init: FetchRequestInit | undefined }> = [];
     const fetchImpl: FetchImplementation = async (input, init) => {
       requests.push({ input, init });
       return response(200, successBody({ files: [] }));
@@ -132,5 +132,34 @@ describe("ApiClient", () => {
       code: "UNAUTHORIZED",
       status: 401,
     });
+  });
+
+  it("normalizes an HTML 401 and notifies the session owner", async () => {
+    let expired = false;
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "expired-token",
+      fetchImpl: async () => response(401, "<html>Unauthorized</html>"),
+      onUnauthorized: () => { expired = true; },
+    });
+
+    await expect(client.request("/files")).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+      status: 401,
+    });
+    expect(expired).toBe(true);
+  });
+
+  it("normalizes an unreadable 401 and notifies the session owner", async () => {
+    let expired = false;
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "expired-token",
+      fetchImpl: async () => ({ ok: false, status: 401, text: async () => { throw new Error("stream failed"); } }),
+      onUnauthorized: () => { expired = true; },
+    });
+
+    await expect(client.request("/files")).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
+    expect(expired).toBe(true);
   });
 });

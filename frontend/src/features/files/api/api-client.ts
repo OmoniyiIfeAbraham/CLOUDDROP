@@ -30,6 +30,7 @@ export interface ApiClientOptions {
   baseUrl: string;
   getToken: TokenGetter;
   fetchImpl?: FetchImplementation;
+  onUnauthorized?: () => void;
 }
 
 export interface ApiClientRequestOptions {
@@ -83,6 +84,7 @@ const parseResponseBody = (body: string, status: number): unknown => {
   try {
     return JSON.parse(body) as unknown;
   } catch {
+    if (status === 401) return undefined;
     throw new ApiError({
       message: "The API returned an invalid response.",
       code: status >= 400 ? "HTTP_ERROR" : "INVALID_RESPONSE",
@@ -161,6 +163,14 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       try {
         rawBody = await response.text();
       } catch {
+        if (response.status === 401) {
+          options.onUnauthorized?.();
+          throw new ApiError({
+            message: "Authentication is required.",
+            code: "UNAUTHORIZED",
+            status: 401,
+          });
+        }
         throw new ApiError({
           message: "The API response could not be read.",
           code: "INVALID_RESPONSE",
@@ -172,6 +182,15 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       const payload = parseResponseBody(rawBody, response.status);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          options.onUnauthorized?.();
+          throw new ApiError({
+            message: isApiFailure(payload) ? payload.message : "Authentication is required.",
+            code: "UNAUTHORIZED",
+            status: 401,
+          });
+        }
+
         if (isApiFailure(payload)) {
           throw new ApiError({
             message: payload.message,

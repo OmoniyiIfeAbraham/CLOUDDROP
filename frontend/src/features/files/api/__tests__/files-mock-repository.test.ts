@@ -8,7 +8,7 @@ describe("MockFilesRepository", () => {
 
     const searchResults = await repository.searchFiles("PROPOSAL");
     expect(searchResults).toHaveLength(1);
-    expect(searchResults[0].id).toBe("file-document-1");
+    expect(searchResults[0]?.id).toBe("file-document-1");
 
     await repository.deleteFile("file-document-1");
 

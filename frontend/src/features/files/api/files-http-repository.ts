@@ -8,6 +8,7 @@ import type {
   FileRecord,
   ShareResult,
 } from "../model/file.types";
+import { uploadFileHttp } from "../../upload/upload-service";
 
 interface FilesPayload {
   files: FileRecord[];
@@ -67,6 +68,10 @@ export const createHttpFilesRepository = (
       method: "DELETE",
       allowEmptyData: true,
     });
+  },
+
+  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void): Promise<FileRecord> {
+    return uploadFileHttp(file, category, onProgress);
   },
 
   getCategories(): Promise<Category[]> {
