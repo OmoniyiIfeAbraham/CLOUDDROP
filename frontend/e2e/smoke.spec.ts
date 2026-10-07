@@ -18,6 +18,8 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
     await page.getByRole("button", { name: "Open navigation" }).click();
   }
   await page.getByRole("link", { name: "My files" }).click();
+  await expect(page.getByRole("main", { name: "My files" })).toBeFocused();
+  await expect(page.locator('.sidebar__nav a[href="/files"]')).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("heading", { name: "My files" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("files.png"), fullPage: true });
 

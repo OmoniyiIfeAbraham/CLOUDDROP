@@ -14,6 +14,7 @@ export const AppLayout = () => {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
@@ -27,6 +28,11 @@ export const AppLayout = () => {
   const closeNavigation = () => {
     setMobileOpen(false);
     window.requestAnimationFrame(() => menuRef.current?.focus());
+  };
+
+  const navigateToContent = () => {
+    setMobileOpen(false);
+    window.requestAnimationFrame(() => mainRef.current?.focus());
   };
 
   useEffect(() => {
@@ -74,7 +80,7 @@ export const AppLayout = () => {
     <div className="app-shell">
       <aside id="primary-navigation" ref={sidebarRef} className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} aria-label="Primary navigation">
         <div className="sidebar__brand">
-          <Link to="/" onClick={closeNavigation} className="brand">
+          <Link to="/" onClick={navigateToContent} className="brand">
             <span className="brand__mark"><Cloud size={22} strokeWidth={2.4} /></span>
             <span>CloudDrop</span>
           </Link>
@@ -87,7 +93,7 @@ export const AppLayout = () => {
               key={to}
               to={to}
               end={end}
-              onClick={closeNavigation}
+              onClick={navigateToContent}
               className={({ isActive }) => `sidebar__link ${isActive ? "sidebar__link--active" : ""}`}
             >
               <Icon size={19} strokeWidth={1.9} />
@@ -117,7 +123,7 @@ export const AppLayout = () => {
             <Link className="button button--primary button--small" to="/upload"><UploadCloud size={16} /> Upload files</Link>
           </div>
         </header>
-        <main className="main-content"><Outlet /></main>
+        <main ref={mainRef} className="main-content" tabIndex={-1} aria-label={currentTitle}><Outlet /></main>
       </div>
     </div>
   );
