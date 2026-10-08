@@ -54,9 +54,9 @@ The file-library test also creates unique test users. Populated file lists and c
 
 ## API integration
 
-The live frontend targets these provisional routes on the backend feature branch: `/auth/register`, `/auth/login`, `/auth/me`, `/files`, `/files/search`, `/files/:id`, `/files/upload`, `/files/:id/download`, `/files/:id/share`, and `/files/:id` DELETE, all under `/api/v1`. Uploads use one multipart request per file with `file` and `category` fields. Downloads and sharing request a fresh presigned URL per action.
+The live frontend targets the routes mounted on `main` and listed in `docs/API.md`, all under `/api/v1`: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /files` (filename search adds a non-empty `search` query parameter), `POST /files` (upload), `GET /files/:id`, `GET /files/:id/download`, `POST /files/:id/share`, and `DELETE /files/:id`. Uploads use one multipart request per file with `file` and `category` fields. Downloads and sharing request a fresh presigned URL per action. Share links use the backend's default lifetime (currently 24 hours); the dialog shows the `expiresIn` value the backend returns.
 
-The backend currently has no category-list, dashboard-statistics, server-side category filter, or pagination endpoint. Category options are the known backend enum; library category filtering and ten-row paging are client-side. Dashboard totals are derived from the loaded file list, not presented as server statistics. The implemented share route is **GET**, despite an earlier team contract listing POST. Confirm these choices with the backend owner before release.
+The backend serves `GET /categories`, but its values match the category enum the frontend already uses, so the frontend does not call it yet. `GET /dashboard/stats` returns 501 Not Implemented, so dashboard totals are derived from the loaded file list, not presented as server statistics. There is no server-side category filter or pagination; library category filtering and ten-row paging are client-side. Confirm these choices with the backend owner before release.
 
 ## Production handoff
 

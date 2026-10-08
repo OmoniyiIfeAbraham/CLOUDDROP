@@ -116,7 +116,7 @@ export const createMockFilesRepository = (
           mimeType: file.mimeType,
         },
         shareUrl: "https://example.invalid/share/" + encodeURIComponent(file.id),
-        expiresIn: 10_800,
+        expiresIn: 86_400,
       };
     },
 

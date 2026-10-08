@@ -78,7 +78,7 @@ describe("HTTP upload", () => {
     const pending = uploadFileHttp(file, "Documents", onProgress);
     const request = FakeRequest.current;
     expect(request.method).toBe("POST");
-    expect(request.url).toBe("/api/v1/files/upload");
+    expect(request.url).toBe("/api/v1/files");
     expect(request.headers.get("Authorization")).toBe("Bearer secret-token");
     expect(request.headers.has("Content-Type")).toBe(false);
     expect((request.body as FormData).get("file")).toBe(file);

@@ -20,7 +20,7 @@ test("list and search files through the live backend", async ({ page, isMobile }
 
   const search = page.waitForResponse((response) => {
     const url = new URL(response.url());
-    return url.pathname === "/api/v1/files/search" && url.searchParams.get("search") === "report";
+    return url.pathname === "/api/v1/files" && url.searchParams.get("search") === "report";
   });
   await page.getByRole("searchbox", { name: "Search files" }).fill("report");
   expect((await search).status()).toBe(200);

@@ -53,7 +53,7 @@ export const uploadFileHttp = (
   const body = new FormData();
   body.append("file", file);
   body.append("category", category);
-  request.open("POST", `${API_BASE_URL.replace(/\/$/, "")}/files/upload`);
+  request.open("POST", `${API_BASE_URL.replace(/\/$/, "")}/files`);
   request.setRequestHeader("Authorization", `Bearer ${token}`);
   request.setRequestHeader("Accept", "application/json");
   request.upload.onprogress = (event) => {

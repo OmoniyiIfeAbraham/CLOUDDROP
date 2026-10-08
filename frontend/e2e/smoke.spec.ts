@@ -44,7 +44,7 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
 
   await page.getByRole("button", { name: "Share capstone-proposal.pdf" }).click();
   await expect(page.getByRole("dialog", { name: "Share file" })).toBeVisible();
-  await expect(page.getByText("Expires in 3 hours", { exact: false })).toBeVisible();
+  await expect(page.getByText("Expires in 24 hours", { exact: false })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Share file" })).not.toBeVisible();
   await page.getByRole("button", { name: "Share capstone-proposal.pdf" }).click();

@@ -34,7 +34,7 @@ export const createHttpFilesRepository = (
       return parseFilesPayload(await client.request<unknown>("/files"));
     }
 
-    const data = await client.request<unknown>("/files/search", {
+    const data = await client.request<unknown>("/files", {
       query: { search: normalizedSearch },
     });
 
@@ -50,7 +50,7 @@ export const createHttpFilesRepository = (
   },
 
   async getTemporaryShare(fileId: string): Promise<ShareResult> {
-    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share"));
+    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share", { method: "POST" }));
   },
 
   async deleteFile(fileId: string): Promise<void> {

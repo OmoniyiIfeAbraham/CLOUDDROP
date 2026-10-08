@@ -4,24 +4,34 @@ import { createHttpFilesRepository } from "../files-http-repository";
 import { normalFileFixtures } from "../files.fixtures";
 
 const file = normalFileFixtures[0]!;
-const success = (data?: unknown): FetchResponse => ({
+const success = (data?: unknown, status = 200): FetchResponse => ({
   ok: true,
-  status: 200,
+  status,
   text: async () => JSON.stringify({ success: true, message: "OK", ...(data === undefined ? {} : { data }) }),
 });
 
 describe("HTTP file actions", () => {
   it("validates list and search data and removes backend-only metadata", async () => {
-    const replies = [success({ files: [{ ...file, s3Key: "private/key" }] }), success({ files: [{ ...file, s3Key: "private/key" }] })];
+    const paths: string[] = [];
+    const replies = [
+      success({ files: [{ ...file, s3Key: "private/key" }] }),
+      success({ files: [{ ...file, s3Key: "private/key" }] }),
+      success({ files: [{ ...file, s3Key: "private/key" }] }),
+    ];
     const client = createApiClient({
       baseUrl: "/api/v1",
       getToken: () => "token-123",
-      fetchImpl: async () => replies.shift()!,
+      fetchImpl: async (path: string) => {
+        paths.push(path);
+        return replies.shift()!;
+      },
     });
     const repository = createHttpFilesRepository(client);
 
     await expect(repository.listFiles()).resolves.toEqual([file]);
-    await expect(repository.searchFiles("proposal")).resolves.toEqual([file]);
+    await expect(repository.searchFiles(" proposal ")).resolves.toEqual([file]);
+    await expect(repository.searchFiles("   ")).resolves.toEqual([file]);
+    expect(paths).toEqual(["/api/v1/files", "/api/v1/files?search=proposal", "/api/v1/files"]);
   });
 
   it("rejects malformed file payloads before pages render them", async () => {
@@ -42,7 +52,7 @@ describe("HTTP file actions", () => {
     const results = [
       success({ file: { ...file, s3Key: "private/key" } }),
       success({ file: { ...file, s3Key: "private/key" }, downloadUrl: "https://example.invalid/download", expiresIn: 600 }),
-      success({ file: { ...file, s3Key: "private/key" }, shareUrl: "https://example.invalid/share", expiresIn: 10_800 }),
+      success({ file: { ...file, s3Key: "private/key" }, token: "share-token", shareUrl: "https://example.invalid/share", expiresAt: "2026-10-09T12:00:00.000Z", expiresIn: 86_400 }, 201),
       success(),
     ];
     const client = createApiClient({
@@ -61,12 +71,16 @@ describe("HTTP file actions", () => {
       downloadUrl: "https://example.invalid/download",
       expiresIn: 600,
     });
-    expect((await repository.getTemporaryShare(file.id)).expiresIn).toBe(10_800);
+    expect(await repository.getTemporaryShare(file.id)).toEqual({
+      file: { id: file.id, originalName: file.originalName, mimeType: file.mimeType },
+      shareUrl: "https://example.invalid/share",
+      expiresIn: 86_400,
+    });
     await expect(repository.deleteFile(file.id)).resolves.toBeUndefined();
     expect(calls).toEqual([
       { path: `/api/v1/files/${file.id}`, method: "GET", authorization: "Bearer token-123" },
       { path: `/api/v1/files/${file.id}/download`, method: "GET", authorization: "Bearer token-123" },
-      { path: `/api/v1/files/${file.id}/share`, method: "GET", authorization: "Bearer token-123" },
+      { path: `/api/v1/files/${file.id}/share`, method: "POST", authorization: "Bearer token-123" },
       { path: `/api/v1/files/${file.id}`, method: "DELETE", authorization: "Bearer token-123" },
     ]);
   });

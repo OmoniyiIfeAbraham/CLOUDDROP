@@ -31,7 +31,7 @@ describe("MockFilesRepository", () => {
     await expect(
       repository.getTemporaryShare("file-document-1"),
     ).resolves.toMatchObject({
-      expiresIn: 10_800,
+      expiresIn: 86_400,
       shareUrl: "https://example.invalid/share/file-document-1",
     });
   });
