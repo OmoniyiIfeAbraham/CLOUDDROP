@@ -43,7 +43,7 @@ export const UploadPage = () => {
             <p>or choose files from your device</p>
             <button className="button button--secondary" type="button" onClick={() => inputRef.current?.click()} disabled={uploading}><Plus size={17} /> Browse files</button>
             <input ref={inputRef} className="sr-only" type="file" multiple tabIndex={-1} aria-label="Choose files to upload" onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ""; }} />
-            <small>PDF, Office files, images, video, audio and archives up to 2&nbsp;GB each</small>
+            <small>PDF, Office files, images, video, audio and archives up to 2 GB each</small>
           </div>
           {queue.length > 0 && (
             <section className="upload-queue" aria-labelledby="queue-heading">
