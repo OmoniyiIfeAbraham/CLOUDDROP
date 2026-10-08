@@ -26,7 +26,6 @@ export const DashboardPage = () => {
     <div className="page-content">
       <div className="page-heading page-heading--hero">
         <div><span className="eyebrow">YOUR WORKSPACE</span><h1>Good to see you, {user?.firstName}.</h1><p>Everything in your cloud, at a glance.</p></div>
-        <Link to="/upload" className="button button--primary"><UploadCloud size={18} /> Upload files</Link>
       </div>
       <section aria-labelledby="overview-heading">
         <div className="section-heading"><h2 id="overview-heading">Storage overview</h2><button className="icon-button" title="Refresh overview" aria-label="Refresh overview" type="button" onClick={() => refetch()} disabled={isFetching}><RefreshCw size={17} /></button></div>

@@ -45,7 +45,6 @@ export const FilesPage = () => {
     <div className="page-content">
       <div className="page-heading">
         <div><span className="eyebrow">LIBRARY</span><h1>My files</h1><p>Find, manage, and share what you have stored.</p></div>
-        <Link to="/upload" className="button button--primary"><UploadCloud size={18} /> Upload files</Link>
       </div>
       <section aria-label="File library">
         <div className="library-toolbar">

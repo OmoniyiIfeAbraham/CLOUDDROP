@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, CircleStop, FileUp, Plus, UploadCloud, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, CircleStop, FileUp, Plus, UploadCloud, X } from "lucide-react";
 import { FILE_CATEGORIES } from "../features/files/model/file.types";
 import type { Category } from "../features/files/model/file.types";
 import { useUploadQueue } from "../features/upload/upload-queue-context";
@@ -43,18 +43,18 @@ export const UploadPage = () => {
             <p>or choose files from your device</p>
             <button className="button button--secondary" type="button" onClick={() => inputRef.current?.click()} disabled={uploading}><Plus size={17} /> Browse files</button>
             <input ref={inputRef} className="sr-only" type="file" multiple tabIndex={-1} aria-label="Choose files to upload" onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ""; }} />
-            <small>PDF, Office files, images, video, audio and archives up to 2 GB each</small>
+            <small>PDF, Office files, images, video, audio and archives up to 2&nbsp;GB each</small>
           </div>
           {queue.length > 0 && (
             <section className="upload-queue" aria-labelledby="queue-heading">
               <div className="section-heading"><h2 id="queue-heading">Upload queue <span className="count-pill">{queue.length}</span></h2>{!uploading && <button className="text-button" type="button" onClick={clear}>Clear queue</button>}</div>
               <ul>
                 {queue.map((item) => (
-                  <li key={item.id} className="upload-item">
-                    <span className="upload-item__icon">{item.status === "complete" ? <CheckCircle2 size={20} /> : <FileUp size={20} />}</span>
+                  <li key={item.id} className={`upload-item ${item.status === "error" ? "upload-item--error" : ""}`}>
+                    <span className="upload-item__icon">{item.status === "complete" ? <CheckCircle2 size={20} /> : item.status === "error" ? <CircleAlert size={20} /> : <FileUp size={20} />}</span>
                     <div className="upload-item__body">
                       <strong title={item.file.name}>{item.file.name}</strong>
-                      <span>{formatBytes(item.file.size)} <span aria-hidden="true">·</span> {statusText(item)}</span>
+                      <span>{formatBytes(item.file.size)} <span aria-hidden="true">·</span> <span className="upload-item__status">{statusText(item)}</span></span>
                       {item.status === "uploading" && <progress max="100" value={item.progress} aria-label={`Upload progress for ${item.file.name}`} />}
                     </div>
                     {canChooseCategory(item) && (
