@@ -56,6 +56,9 @@ test("workspace and file actions meet automated accessibility checks", async ({ 
   await audit(page, "file details");
 
   await page.getByRole("button", { name: "Share" }).click();
+  await expect(page.getByRole("radio", { name: "1 day" })).toBeChecked();
+  await audit(page, "share expiry options");
+  await page.getByRole("button", { name: "Create link" }).click();
   await expect(page.getByRole("textbox", { name: "Temporary link" })).toBeVisible();
   await audit(page, "share dialog");
   await page.keyboard.press("Escape");
@@ -68,9 +71,12 @@ test("workspace and file actions meet automated accessibility checks", async ({ 
   await page.goto("/upload");
   await expect(page.getByRole("heading", { name: "Upload files" })).toBeVisible();
   await audit(page, "upload");
-  await page.locator('input[type="file"]').setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") });
-  await page.getByRole("button", { name: "Upload 1 file" }).click();
-  await expect(page.getByRole("alert")).toContainText("Choose a category before uploading.");
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") },
+    { name: "run.exe", mimeType: "application/x-msdownload", buffer: Buffer.from("MZ") },
+  ]);
+  await expect(page.getByRole("combobox", { name: "Category for notes.txt" })).toHaveValue("Documents");
+  await expect(page.getByRole("listitem").filter({ hasText: "run.exe" })).toContainText("This file type is not supported.");
   await audit(page, "upload queue and validation");
 });
 

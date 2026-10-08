@@ -105,7 +105,7 @@ export const createMockFilesRepository = (
       };
     },
 
-    async getTemporaryShare(fileId: string): Promise<ShareResult> {
+    async getTemporaryShare(fileId: string, ttlHours = 24): Promise<ShareResult> {
       failWhenConfigured("share");
       const file = findFile(fileId);
 
@@ -116,7 +116,7 @@ export const createMockFilesRepository = (
           mimeType: file.mimeType,
         },
         shareUrl: "https://example.invalid/share/" + encodeURIComponent(file.id),
-        expiresIn: 86_400,
+        expiresIn: ttlHours * 3600,
       };
     },
 
@@ -126,9 +126,17 @@ export const createMockFilesRepository = (
       files = files.filter((file) => file.id !== fileId);
     },
 
-    async uploadFile(file: File, category: Category, onProgress?: (percent: number) => void): Promise<FileRecord> {
+    async uploadFile(file: File, category: Category, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord> {
+      const cancelled = () => new ApiError({ message: "Upload was cancelled.", code: "UPLOAD_CANCELLED" });
+      if (signal?.aborted) throw cancelled();
       onProgress?.(25);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, 300);
+        signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(cancelled());
+        }, { once: true });
+      });
       onProgress?.(85);
       const now = new Date().toISOString();
       const record: FileRecord = {

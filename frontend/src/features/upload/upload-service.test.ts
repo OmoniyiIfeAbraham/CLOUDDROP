@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_FILE_SIZE, uploadFileHttp, validateUploadFile } from "./upload-service";
+import { MAX_FILE_SIZE, suggestCategory, uploadFileHttp, validateUploadFile } from "./upload-service";
 import { sessionToken } from "../../lib/runtime";
 import { SESSION_EXPIRED_EVENT } from "../../lib/api";
 import { normalFileFixtures } from "../files/api/files.fixtures";
@@ -39,6 +39,13 @@ class FakeRequest {
     this.responseText = payload;
     this.onload?.();
   }
+
+  aborted = false;
+
+  abort() {
+    this.aborted = true;
+    this.onabort?.();
+  }
 }
 
 beforeEach(() => {
@@ -62,6 +69,17 @@ describe("upload validation", () => {
     const oversized = new File(["x"], "large.pdf", { type: "application/pdf" });
     Object.defineProperty(oversized, "size", { value: MAX_FILE_SIZE + 1 });
     expect(validateUploadFile(oversized)).toMatch(/2 GB/);
+  });
+
+  it("suggests the same category the backend would assign", () => {
+    expect(suggestCategory("application/pdf")).toBe("Documents");
+    expect(suggestCategory("text/csv")).toBe("Documents");
+    expect(suggestCategory("IMAGE/PNG")).toBe("Images");
+    expect(suggestCategory("video/webm")).toBe("Videos");
+    expect(suggestCategory("audio/ogg")).toBe("Audio");
+    expect(suggestCategory("application/x-7z-compressed")).toBe("Archives");
+    expect(suggestCategory("application/octet-stream")).toBe("Other");
+    expect(suggestCategory("")).toBe("Other");
   });
 });
 
@@ -126,9 +144,17 @@ describe("HTTP upload", () => {
 
   it("rejects malformed responses and non-retryable client errors", async () => {
     sessionToken.set("token");
-    const malformed = uploadFileHttp(file, "Documents");
+    const gateway = uploadFileHttp(file, "Documents");
     FakeRequest.current.respond(502, "<html>Bad gateway</html>");
-    await expect(malformed).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 502 });
+    await expect(gateway).rejects.toMatchObject({ code: "HTTP_ERROR", status: 502, retryable: true });
+
+    const tooLarge = uploadFileHttp(file, "Documents");
+    FakeRequest.current.respond(413, "<html>413 Request Entity Too Large</html>");
+    await expect(tooLarge).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE", status: 413, retryable: false });
+
+    const malformed = uploadFileHttp(file, "Documents");
+    FakeRequest.current.respond(200, "<html>not json</html>");
+    await expect(malformed).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 200 });
 
     const missingFile = uploadFileHttp(file, "Documents");
     FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: {} }));
@@ -141,5 +167,19 @@ describe("HTTP upload", () => {
     const invalid = uploadFileHttp(file, "Documents");
     FakeRequest.current.respond(400, JSON.stringify({ success: false, message: "Invalid upload", error: { code: "INVALID_UPLOAD" } }));
     await expect(invalid).rejects.toMatchObject({ code: "INVALID_UPLOAD", status: 400, retryable: false });
+  });
+
+  it("aborts the request when the upload is cancelled", async () => {
+    sessionToken.set("token");
+    const controller = new AbortController();
+    const pending = uploadFileHttp(file, "Documents", undefined, controller.signal);
+    const request = FakeRequest.current;
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ code: "UPLOAD_CANCELLED" });
+    expect(request.aborted).toBe(true);
+
+    const before = FakeRequest.current;
+    await expect(uploadFileHttp(file, "Documents", undefined, controller.signal)).rejects.toMatchObject({ code: "UPLOAD_CANCELLED" });
+    expect(FakeRequest.current).toBe(before);
   });
 });

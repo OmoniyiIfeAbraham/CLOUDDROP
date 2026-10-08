@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Cloud, Files, House, LogOut, Menu, UploadCloud, X } from "lucide-react";
 import { useAuth } from "../../features/auth/auth-context";
+import { useUploadQueue } from "../../features/upload/upload-queue-context";
 import { USE_MOCK_API } from "../../lib/runtime";
+import { ErrorBoundary } from "../ui/ErrorBoundary";
 
 const navItems = [
   { to: "/", label: "Overview", icon: House, end: true },
@@ -12,6 +14,7 @@ const navItems = [
 
 export const AppLayout = () => {
   const { user, logout } = useAuth();
+  const { queue, uploading } = useUploadQueue();
   const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -24,6 +27,8 @@ export const AppLayout = () => {
     : location.pathname.startsWith("/upload")
       ? "Upload"
       : "Overview";
+  const uploadsLeft = queue.filter((item) => item.status === "ready" || item.status === "uploading").length;
+  const showUploadStatus = uploading && !location.pathname.startsWith("/upload");
 
   const closeNavigation = () => {
     setMobileOpen(false);
@@ -121,10 +126,11 @@ export const AppLayout = () => {
           </div>
           <div className="topbar__right">
             {USE_MOCK_API && <span className="demo-badge">Demo data</span>}
+            {showUploadStatus && <Link className="upload-status" to="/upload" aria-label={`Uploading ${uploadsLeft} ${uploadsLeft === 1 ? "file" : "files"}. View upload queue`}><span className="spinner" aria-hidden="true" /><span className="upload-status__text">Uploading {uploadsLeft} {uploadsLeft === 1 ? "file" : "files"}</span></Link>}
             <Link className="button button--primary button--small" to="/upload"><UploadCloud size={16} /> Upload files</Link>
           </div>
         </header>
-        <main id="workspace-main" ref={mainRef} className="main-content" tabIndex={-1} aria-label={currentTitle}><Outlet /></main>
+        <main id="workspace-main" ref={mainRef} className="main-content" tabIndex={-1} aria-label={currentTitle}><ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary></main>
       </div>
     </div>
   );

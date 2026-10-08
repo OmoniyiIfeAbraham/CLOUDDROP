@@ -8,6 +8,16 @@ export const formatBytes = (size: number): string => {
   return `${new Intl.NumberFormat("en", { maximumFractionDigits: value < 10 ? 1 : 0 }).format(value)} ${units[exponent - 1]}`;
 };
 
+export const formatDuration = (seconds: number): string => {
+  const hours = Math.max(1, Math.round(seconds / 3600));
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  const days = Math.round(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"}`;
+};
+
+export const formatDateTime = (timestamp: number): string =>
+  new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(timestamp);
+
 export const formatDate = (value: string): string => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown date";

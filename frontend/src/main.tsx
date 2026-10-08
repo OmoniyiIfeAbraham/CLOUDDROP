@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { FilesProvider } from "./features/files/api/FilesProvider";
 import { ToastProvider } from "./components/ui/ToastProvider";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { UploadQueueProvider } from "./features/upload/UploadQueueProvider";
 import { App } from "./app/App";
 import "./styles.css";
 
@@ -25,7 +27,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <ToastProvider>
           <AuthProvider>
             <FilesProvider>
-              <App />
+              <UploadQueueProvider>
+                <ErrorBoundary fullPage>
+                  <App />
+                </ErrorBoundary>
+              </UploadQueueProvider>
             </FilesProvider>
           </AuthProvider>
         </ToastProvider>

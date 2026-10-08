@@ -4,14 +4,32 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, Link2, Trash2 } from "lucide-react";
 import { Dialog } from "../../../components/ui/Dialog";
 import { useToast } from "../../../components/ui/toast-context";
-import { userMessage } from "../../../lib/messages";
+import { formatDateTime, formatDuration } from "../../../lib/format";
+import { fileMessage } from "../../../lib/messages";
 import { useFilesRepository } from "../api/files-context";
 import type { FileRecord, ShareResult } from "../model/file.types";
+
+const SHARE_DURATIONS = [
+  { hours: 1, label: "1 hour" },
+  { hours: 24, label: "1 day" },
+  { hours: 168, label: "7 days" },
+] as const;
+const DEFAULT_SHARE_HOURS = 24;
 
 const requireHttpsUrl = (value: string): string => {
   const url = new URL(value);
   if (url.protocol !== "https:") throw new Error("Invalid file link");
   return url.toString();
+};
+
+const openWithLink = (url: string) => {
+  const link = document.createElement("a");
+  link.href = url;
+  link.rel = "noopener noreferrer";
+  link.target = "_blank";
+  document.body.append(link);
+  link.click();
+  link.remove();
 };
 
 export const useFileActions = () => {
@@ -27,6 +45,7 @@ export const useFileActions = () => {
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
   const [shareError, setShareError] = useState("");
   const [shareLoading, setShareLoading] = useState(false);
+  const [shareHours, setShareHours] = useState<number>(DEFAULT_SHARE_HOURS);
   const [copied, setCopied] = useState(false);
   const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
   const shareRequestId = useRef(0);
@@ -41,34 +60,45 @@ export const useFileActions = () => {
   }, [shareResult, shareExpiresAt]);
 
   const download = async (file: FileRecord) => {
+    // Open the tab while the click is still being handled: Safari blocks tabs opened after an await.
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
     setBusyFileId(file.id);
     try {
       const result = await repository.getDownload(file.id);
-      const link = document.createElement("a");
-      link.href = requireHttpsUrl(result.downloadUrl);
-      link.rel = "noopener noreferrer";
-      link.target = "_blank";
-      document.body.append(link);
-      link.click();
-      link.remove();
+      const url = requireHttpsUrl(result.downloadUrl);
+      if (tab && !tab.closed) tab.location.href = url;
+      else openWithLink(url);
       notify(`Download started for ${file.originalName}.`);
     } catch (error) {
-      notify(userMessage(error, "The download link could not be opened."), "error");
+      tab?.close();
+      notify(fileMessage(error, "The download link could not be opened."), "error");
     } finally {
       setBusyFileId(null);
     }
   };
 
-  const share = async (file: FileRecord) => {
-    const requestId = ++shareRequestId.current;
+  const share = (file: FileRecord) => {
+    shareRequestId.current += 1;
     setShareTarget(file);
+    setShareResult(null);
+    setShareError("");
+    setShareLoading(false);
+    setShareHours(DEFAULT_SHARE_HOURS);
+    setCopied(false);
+    setShareExpiresAt(null);
+  };
+
+  const createShare = async () => {
+    if (!shareTarget) return;
+    const requestId = ++shareRequestId.current;
     setShareResult(null);
     setShareError("");
     setCopied(false);
     setShareExpiresAt(null);
     setShareLoading(true);
     try {
-      const result = await repository.getTemporaryShare(file.id);
+      const result = await repository.getTemporaryShare(shareTarget.id, shareHours);
       const shareUrl = requireHttpsUrl(result.shareUrl);
       if (requestId === shareRequestId.current) {
         setShareResult({ ...result, shareUrl });
@@ -76,7 +106,7 @@ export const useFileActions = () => {
       }
     } catch (error) {
       if (requestId === shareRequestId.current) {
-        setShareError(userMessage(error, "The share link could not be created."));
+        setShareError(fileMessage(error, "The share link could not be created."));
       }
     } finally {
       if (requestId === shareRequestId.current) setShareLoading(false);
@@ -116,7 +146,7 @@ export const useFileActions = () => {
       notify(`${file.originalName} deleted.`);
       if (location.pathname === `/files/${encodeURIComponent(file.id)}`) navigate("/files");
     } catch (error) {
-      const message = userMessage(error, "The file could not be deleted.");
+      const message = fileMessage(error, "The file could not be deleted.");
       setDeleteError(message);
     } finally {
       setBusyFileId(null);
@@ -127,13 +157,28 @@ export const useFileActions = () => {
     <>
       <Dialog title="Share file" open={!!shareTarget} onClose={() => { shareRequestId.current += 1; setShareTarget(null); setShareResult(null); }} >
         <div className="dialog__body">
-          <p className="dialog__intro">Create a temporary link for <strong>{shareTarget?.originalName}</strong>.</p>
+          <p className="dialog__intro">Create a temporary link for <strong>{shareTarget?.originalName}</strong>. Anyone with the link can download the file until it expires.</p>
+          {!shareResult && (
+            <fieldset className="choice-group" disabled={shareLoading}>
+              <legend>Link expires after</legend>
+              <div className="choice-group__options">
+                {SHARE_DURATIONS.map(({ hours, label }) => (
+                  <label key={hours} className="choice"><input type="radio" name="share-duration" value={hours} checked={shareHours === hours} onChange={() => setShareHours(hours)} /> {label}</label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {shareLoading && <div className="inline-progress" role="status"><span className="spinner" /> Creating secure link...</div>}
-          {shareError && <><div className="inline-alert" role="alert">{shareError}</div><button className="button button--secondary" type="button" onClick={() => { if (shareTarget) void share(shareTarget); }}>Create new link</button></>}
-          {shareResult && (
+          {shareError && <div className="inline-alert" role="alert">{shareError}</div>}
+          {!shareResult && !shareLoading && (
+            <div className="dialog__actions">
+              <button className="button button--primary" type="button" onClick={() => void createShare()}><Link2 size={16} /> {shareError ? "Create new link" : "Create link"}</button>
+            </div>
+          )}
+          {shareResult && shareExpiresAt && (
             <>
               <label className="field"><span>Temporary link</span><input readOnly value={shareResult.shareUrl} onFocus={(event) => event.currentTarget.select()} /></label>
-              <p className="dialog__hint"><Link2 size={16} /> Expires in {Math.ceil(shareResult.expiresIn / 3600)} hours. Anyone with the link can download the file until then.</p>
+              <p className="dialog__hint"><Link2 size={16} /> Expires in {formatDuration(shareResult.expiresIn)}, on {formatDateTime(shareExpiresAt)}.</p>
               <div className="dialog__actions">
                 <a className="button button--secondary" href={shareResult.shareUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /> Open link</a>
                 <button className="button button--primary" type="button" onClick={copyShare}>{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button>

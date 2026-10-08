@@ -11,9 +11,9 @@ export interface FilesRepository {
   searchFiles(search: string): Promise<FileRecord[]>;
   getFile(fileId: string): Promise<FileRecord>;
   getDownload(fileId: string): Promise<DownloadResult>;
-  getTemporaryShare(fileId: string): Promise<ShareResult>;
+  getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult>;
   deleteFile(fileId: string): Promise<void>;
-  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void): Promise<FileRecord>;
+  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord>;
   getCategories(): Promise<Category[]>;
   getDashboardStats(): Promise<DashboardStats>;
 }

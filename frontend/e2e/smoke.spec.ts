@@ -44,10 +44,14 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
 
   await page.getByRole("button", { name: "Share capstone-proposal.pdf" }).click();
   await expect(page.getByRole("dialog", { name: "Share file" })).toBeVisible();
-  await expect(page.getByText("Expires in 24 hours", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Create link" }).click();
+  await expect(page.getByText("Expires in 1 day", { exact: false })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Share file" })).not.toBeVisible();
   await page.getByRole("button", { name: "Share capstone-proposal.pdf" }).click();
+  await page.getByRole("radio", { name: "7 days" }).check();
+  await page.getByRole("button", { name: "Create link" }).click();
+  await expect(page.getByText("Expires in 7 days", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Copy link" }).click();
   await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
@@ -69,7 +73,7 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
     mimeType: "text/plain",
     buffer: Buffer.from("CloudDrop smoke test"),
   });
-  await page.getByRole("combobox", { name: "Category" }).selectOption("Documents");
+  await expect(page.getByRole("combobox", { name: "Category for fresh-notes.txt" })).toHaveValue("Documents");
   await page.getByRole("button", { name: "Upload 1 file" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "fresh-notes.txt" })).toContainText("Uploaded");
   await page.screenshot({ path: testInfo.outputPath("upload.png"), fullPage: true });
