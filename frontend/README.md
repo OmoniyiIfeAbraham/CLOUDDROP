@@ -50,7 +50,19 @@ To check the file library's empty-list and search responses through that backend
 VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-files.spec.ts
 ```
 
-The file-library test also creates unique test users. Populated file lists and category filtering need backend test data; the current backend does not offer server-side category filtering or pagination.
+To check the whole flow against a backend with working S3 (register, sign in, upload, list and search, download, share with a 1-hour link, delete), run:
+
+```bash
+VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-flow.spec.ts
+```
+
+Each step saves a screenshot under `test-results/`. The test also fetches the download and share links to confirm they return the uploaded content, and checks that the share link stops working after deletion. To run it against a deployed site instead of a local dev server, set `E2E_BASE_URL`:
+
+```bash
+E2E_BASE_URL=https://<deployed-host> VITE_USE_MOCK_API=false npm run test:e2e -- e2e/live-flow.spec.ts
+```
+
+The file-library and full-flow tests also create unique test users. Populated file lists and category filtering need backend test data; the current backend does not offer server-side category filtering or pagination.
 
 ## API integration
 
