@@ -60,6 +60,6 @@ The backend serves `GET /categories`, but its values match the category enum the
 
 ## Production handoff
 
-Build with `VITE_USE_MOCK_API=false` and `VITE_API_BASE_URL=/api/v1`. Serve `dist/` as static files, fall back to `index.html` for application routes, and proxy `/api/v1` on the same origin to Express. If a separate frontend origin is chosen, configure backend CORS explicitly and test authentication, upload, and presigned URL behavior. Confirm proxy upload limits and timeouts for the backend's 2 GB file limit; a frontend size check does not make the server or proxy capable of handling that size.
+Build with `VITE_USE_MOCK_API=false` and `VITE_API_BASE_URL=/api/v1`. Serve `dist/` as static files, fall back to `index.html` for application routes, and proxy `/api/v1` on the same origin to Express. If a separate frontend origin is chosen, configure backend CORS explicitly and test authentication, upload, and presigned URL behavior. Uploads are limited to 25 MB per file, matching the backend. The reverse proxy must accept request bodies a little larger than that to allow for multipart overhead (for example, Nginx `client_max_body_size 30m;`); Nginx's default of 1 MB rejects most uploads with 413.
 
 Live backend and deployment-environment smoke tests remain necessary. A passing demo-mode browser suite does not verify S3, PostgreSQL, reverse-proxy behavior, or backend response compatibility.
