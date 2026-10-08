@@ -1,3 +1,32 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cloud-drop-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cloud_drop
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: cloud-drop-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/cloud_drop"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
 services:
   backend:
     image: ${BACKEND_IMAGE:-clouddrop-backend:latest}
