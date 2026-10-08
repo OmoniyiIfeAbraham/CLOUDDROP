@@ -1,4 +1,4 @@
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 const allowedMimeTypes = new Set([
   "application/pdf",
@@ -30,7 +30,7 @@ export const validateUploadedFile = (
   size: number,
 ) => {
   if (size > MAX_FILE_SIZE) {
-    throw new Error("File size exceeds the 2 GB limit");
+    throw new Error("File size exceeds the 25 MB limit");
   }
 
   if (!allowedMimeTypes.has(mimeType)) {
