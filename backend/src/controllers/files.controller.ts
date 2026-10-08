@@ -16,10 +16,9 @@ import { generateDownloadUrl } from "../services/s3-download.service.js";
 import { generateShareUrl } from "../services/s3-share.service.js";
 import {
   createFile,
-  getUserFiles,
   getFileById,
   deleteFile as deleteFileRecord,
-  searchUserFiles,
+  listUserFiles,
 } from "../services/file.service.js";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -27,14 +26,17 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
 });
+
 const prisma = new PrismaClient({ adapter });
 
 const getUserId = (req: Request): string => {
   const userId =
     req.user?.id ?? (req as Request & { userId?: string }).userId;
+
   if (!userId) {
     throw new ApiError(401, "Authentication required", "UNAUTHORIZED");
   }
+
   return userId;
 };
 
@@ -81,6 +83,7 @@ export const uploadFile = async (
     } catch {
       // Roll back S3 object if metadata save fails
       await deleteFromS3(uploaded.key).catch(() => undefined);
+
       throw new ApiError(
         500,
         "File metadata could not be saved",
@@ -94,12 +97,14 @@ export const uploadFile = async (
           new ApiError(400, error.message, "FILE_TOO_LARGE"),
         );
       }
+
       if (error.message === "File type is not supported") {
         return next(
           new ApiError(400, error.message, "UNSUPPORTED_FILE_TYPE"),
         );
       }
     }
+
     next(error);
   }
 };
@@ -111,19 +116,81 @@ export const listFiles = async (
 ) => {
   try {
     const userId = getUserId(req);
+
     const search =
-      typeof req.query.search === "string" ? req.query.search.trim() : "";
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : "";
 
-    const files = search
-      ? await searchUserFiles(userId, search)
-      : await getUserFiles(userId);
+    const category =
+      typeof req.query.category === "string"
+        ? req.query.category.trim()
+        : undefined;
 
-    res.status(200).json({
+    const pageParam =
+      typeof req.query.page === "string"
+        ? Number(req.query.page)
+        : 1;
+
+    const limitParam =
+      typeof req.query.limit === "string"
+        ? Number(req.query.limit)
+        : 10;
+
+    if (!Number.isInteger(pageParam) || pageParam < 1) {
+      throw new ApiError(
+        400,
+        "Page must be a positive integer",
+        "BAD_REQUEST",
+      );
+    }
+
+    if (
+      !Number.isInteger(limitParam) ||
+      limitParam < 1 ||
+      limitParam > 100
+    ) {
+      throw new ApiError(
+        400,
+        "Limit must be an integer between 1 and 100",
+        "BAD_REQUEST",
+      );
+    }
+
+    let validatedCategory:
+      | "Documents"
+      | "Images"
+      | "Videos"
+      | "Audio"
+      | "Archives"
+      | "Other"
+      | undefined;
+
+    if (category) {
+      const result = fileCategorySchema.safeParse({ category });
+
+      if (!result.success) {
+        throw new ApiError(
+          400,
+          "Invalid file category",
+          "BAD_REQUEST",
+        );
+      }
+
+      validatedCategory = result.data.category;
+    }
+
+    const result = await listUserFiles(userId, {
+      search,
+      category: validatedCategory,
+      page: pageParam,
+      limit: limitParam,
+    });
+
+    return res.status(200).json({
       success: true,
-      message: search
-        ? "Files search completed successfully"
-        : "Files retrieved successfully",
-      data: { files },
+      message: "Files retrieved successfully",
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -178,7 +245,7 @@ export const downloadFile = async (
       throw new ApiError(404, "File not found", "NOT_FOUND");
     }
 
-    const expiresIn = 600; // 10 minutes
+    const expiresIn = 600;
     const downloadUrl = await generateDownloadUrl(file.s3Key, expiresIn);
 
     res.status(200).json({
@@ -253,6 +320,7 @@ export const createShare = async (
         : DEFAULT_SHARE_TTL_HOURS;
 
     let expiresAt: Date;
+
     try {
       expiresAt = resolveShareExpiry(ttlHours);
     } catch (err) {
@@ -273,13 +341,15 @@ export const createShare = async (
       },
     });
 
-    // Presigned URL aligned with share TTL (capped by S3 practical limits)
     const expiresInSeconds = Math.min(
       Math.floor((expiresAt.getTime() - Date.now()) / 1000),
-      7 * 24 * 60 * 60, // 7 days max for presign
+      7 * 24 * 60 * 60,
     );
 
-    const shareUrl = await generateShareUrl(file.s3Key, expiresInSeconds);
+    const shareUrl = await generateShareUrl(
+      file.s3Key,
+      expiresInSeconds,
+    );
 
     res.status(201).json({
       success: true,
