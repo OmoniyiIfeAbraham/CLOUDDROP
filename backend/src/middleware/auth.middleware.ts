@@ -5,6 +5,11 @@ interface AuthRequest extends Request {
   userId?: string;
 }
 
+/**
+ * JWT authentication middleware (Eunice).
+ * Populates both `req.userId` (legacy) and `req.user.id` (typed Express extension)
+ * so requireAuth and other consumers work consistently.
+ */
 export const authMiddleware = (
   req: AuthRequest,
   res: Response,
@@ -52,7 +57,9 @@ export const authMiddleware = (
   try {
     const decoded = jwt.verify(token, secret) as { userId: string };
 
+    // Support both conventions used across the codebase
     req.userId = decoded.userId;
+    req.user = { id: decoded.userId };
 
     next();
   } catch {

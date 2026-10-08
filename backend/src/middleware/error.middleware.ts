@@ -1,4 +1,5 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
+import { ApiError } from "../utils/api-error.js";
 
 export const errorMiddleware = (
   err: Error,
@@ -8,7 +9,17 @@ export const errorMiddleware = (
 ) => {
   console.error(err);
 
-  res.status(500).json({
+  if (err instanceof ApiError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+      error: {
+        code: err.code,
+      },
+    });
+  }
+
+  return res.status(500).json({
     success: false,
     message: "Internal server error",
     error: {

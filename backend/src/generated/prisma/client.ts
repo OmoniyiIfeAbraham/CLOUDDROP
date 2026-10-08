@@ -51,3 +51,8 @@ export type User = Prisma.UserModel
  * 
  */
 export type File = Prisma.FileModel
+/**
+ * Model Share
+ * 
+ */
+export type Share = Prisma.ShareModel
