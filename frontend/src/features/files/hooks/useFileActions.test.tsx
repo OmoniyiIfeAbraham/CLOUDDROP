@@ -27,39 +27,70 @@ const renderActions = (repository: FilesRepository) => {
   );
 };
 
+const fakeTab = () => ({ opener: {} as unknown, closed: false, location: { href: "" }, close: vi.fn() });
+
+const openShare = async (file: typeof firstFile) => {
+  fireEvent.click(await screen.findByRole("button", { name: `Share ${file.originalName}` }));
+  fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+};
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
 describe("file actions", () => {
-  it("requests a fresh HTTPS download URL for each action", async () => {
+  it("opens the download tab during the click, then sends it to a fresh URL", async () => {
     const base = createMockFilesRepository();
     let issued = 0;
     const getDownload = vi.fn(async (id: string) => ({
       ...await base.getDownload(id),
       downloadUrl: `https://example.invalid/download/${++issued}`,
     }));
-    const opened: string[] = [];
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-      opened.push(this.href);
-    });
+    const tabs = [fakeTab(), fakeTab()];
+    const open = vi.spyOn(window, "open").mockImplementation(() => tabs[open.mock.calls.length - 1] as unknown as Window);
     renderActions({ ...base, getDownload });
 
     const button = await screen.findByRole("button", { name: `Download ${firstFile.originalName}` });
     fireEvent.click(button);
-    await waitFor(() => expect(opened).toHaveLength(1));
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    await waitFor(() => expect(tabs[0]!.location.href).toBe("https://example.invalid/download/1"));
     fireEvent.click(button);
-    await waitFor(() => expect(opened).toHaveLength(2));
-    expect(opened).toEqual([
-      "https://example.invalid/download/1",
-      "https://example.invalid/download/2",
-    ]);
+    await waitFor(() => expect(tabs[1]!.location.href).toBe("https://example.invalid/download/2"));
+    expect(tabs[0]!.opener).toBeNull();
     expect(getDownload).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to a link when the browser blocks the new tab", async () => {
+    const opened: string[] = [];
+    vi.spyOn(window, "open").mockReturnValue(null);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      opened.push(this.href);
+    });
+    renderActions(createMockFilesRepository());
+
+    fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
+    await waitFor(() => expect(opened).toEqual([`https://example.invalid/download/${firstFile.id}`]));
+  });
+
+  it("closes the download tab and explains a missing file", async () => {
+    const tab = fakeTab();
+    vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+    renderActions({
+      ...createMockFilesRepository(),
+      getDownload: async () => { throw new ApiError({ message: "File not found", code: "NOT_FOUND", status: 404 }); },
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
+    expect(await screen.findByText("That file is no longer available.")).toBeVisible();
+    expect(tab.close).toHaveBeenCalled();
+    expect(tab.location.href).toBe("");
   });
 
   it("does not open a non-HTTPS download URL", async () => {
     const base = createMockFilesRepository();
+    const tab = fakeTab();
+    vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     renderActions({
       ...base,
@@ -68,20 +99,40 @@ describe("file actions", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
     expect(await screen.findByText("The download link could not be opened.")).toBeVisible();
+    expect(tab.close).toHaveBeenCalled();
+    expect(tab.location.href).toBe("");
     expect(click).not.toHaveBeenCalled();
+  });
+
+  it("waits for the user to choose an expiry before creating a link", async () => {
+    const base = createMockFilesRepository();
+    const getTemporaryShare = vi.fn((id: string, ttlHours?: number) => base.getTemporaryShare(id, ttlHours));
+    renderActions({ ...base, getTemporaryShare });
+
+    fireEvent.click(await screen.findByRole("button", { name: `Share ${firstFile.originalName}` }));
+    expect(screen.getByRole("radio", { name: "1 day" })).toBeChecked();
+    expect(getTemporaryShare).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("radio", { name: "7 days" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    expect(await screen.findByRole("textbox", { name: "Temporary link" })).toHaveValue(`https://example.invalid/share/${firstFile.id}`);
+    expect(getTemporaryShare).toHaveBeenCalledWith(firstFile.id, 168);
+    expect(screen.getByText(/Expires in 7 days, on /)).toBeVisible();
+    expect(screen.queryByRole("radio", { name: "7 days" })).not.toBeInTheDocument();
   });
 
   it("keeps a failed share open and can request a new link", async () => {
     const base = createMockFilesRepository();
-    const getTemporaryShare = vi.fn((id: string) => base.getTemporaryShare(id))
+    const getTemporaryShare = vi.fn((id: string, ttlHours?: number) => base.getTemporaryShare(id, ttlHours))
       .mockRejectedValueOnce(new ApiError({ message: "Unavailable", code: "SHARE_FAILED", status: 500, retryable: true }));
     renderActions({ ...base, getTemporaryShare });
 
-    fireEvent.click(await screen.findByRole("button", { name: `Share ${firstFile.originalName}` }));
+    await openShare(firstFile);
     expect(await screen.findByRole("alert")).toHaveTextContent("The share link could not be created.");
     fireEvent.click(screen.getByRole("button", { name: "Create new link" }));
     expect(await screen.findByRole("textbox", { name: "Temporary link" })).toHaveValue(`https://example.invalid/share/${firstFile.id}`);
     expect(getTemporaryShare).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(/Expires in 1 day, on /)).toBeVisible();
   });
 
   it("does not expose a non-HTTPS share URL", async () => {
@@ -91,7 +142,7 @@ describe("file actions", () => {
       getTemporaryShare: async (id) => ({ ...await base.getTemporaryShare(id), shareUrl: "http://example.invalid/share" }),
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: `Share ${firstFile.originalName}` }));
+    await openShare(firstFile);
     expect(await screen.findByRole("alert")).toHaveTextContent("The share link could not be created.");
     expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Open link" })).not.toBeInTheDocument();
@@ -102,7 +153,7 @@ describe("file actions", () => {
     const getTemporaryShare = vi.fn(async (id: string) => ({ ...await base.getTemporaryShare(id), expiresIn: 0.05 }));
     renderActions({ ...base, getTemporaryShare });
 
-    fireEvent.click(await screen.findByRole("button", { name: `Share ${firstFile.originalName}` }));
+    await openShare(firstFile);
     expect(await screen.findByRole("textbox", { name: "Temporary link" })).toBeVisible();
     expect(await screen.findByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
     expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
@@ -117,10 +168,10 @@ describe("file actions", () => {
     const getTemporaryShare = vi.fn((id: string) => id === firstFile.id ? oldRequest : base.getTemporaryShare(id));
     renderActions({ ...base, getTemporaryShare });
 
-    fireEvent.click(await screen.findByRole("button", { name: `Share ${firstFile.originalName}` }));
+    await openShare(firstFile);
     expect(screen.getByText("Creating secure link...")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
-    fireEvent.click(screen.getByRole("button", { name: `Share ${secondFile.originalName}` }));
+    await openShare(secondFile);
     expect(await screen.findByRole("textbox", { name: "Temporary link" })).toHaveValue(`https://example.invalid/share/${secondFile.id}`);
 
     await act(async () => resolveOld(await base.getTemporaryShare(firstFile.id)));

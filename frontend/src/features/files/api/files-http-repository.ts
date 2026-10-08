@@ -49,8 +49,11 @@ export const createHttpFilesRepository = (
     return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download"));
   },
 
-  async getTemporaryShare(fileId: string): Promise<ShareResult> {
-    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share", { method: "POST" }));
+  async getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult> {
+    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share", {
+      method: "POST",
+      ...(ttlHours === undefined ? {} : { body: JSON.stringify({ ttlHours }) }),
+    }));
   },
 
   async deleteFile(fileId: string): Promise<void> {
@@ -60,8 +63,8 @@ export const createHttpFilesRepository = (
     });
   },
 
-  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void): Promise<FileRecord> {
-    return uploadFileHttp(file, category, onProgress);
+  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord> {
+    return uploadFileHttp(file, category, onProgress, signal);
   },
 
   getCategories(): Promise<Category[]> {

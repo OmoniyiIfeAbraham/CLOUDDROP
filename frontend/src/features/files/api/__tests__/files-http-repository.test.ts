@@ -85,6 +85,23 @@ describe("HTTP file actions", () => {
     ]);
   });
 
+  it("sends the chosen share lifetime to the backend", async () => {
+    const bodies: Array<string | undefined> = [];
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "token-123",
+      fetchImpl: async (_path: string, init?: FetchRequestInit) => {
+        bodies.push(init?.body);
+        return success({ file, shareUrl: "https://example.invalid/share", expiresIn: 604_800 }, 201);
+      },
+    });
+    const repository = createHttpFilesRepository(client);
+
+    await repository.getTemporaryShare(file.id, 168);
+    await repository.getTemporaryShare(file.id);
+    expect(bodies).toEqual([JSON.stringify({ ttlHours: 168 }), undefined]);
+  });
+
   it("preserves a failed delete instead of treating it as success", async () => {
     const client = createApiClient({
       baseUrl: "/api/v1",

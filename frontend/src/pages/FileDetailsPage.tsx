@@ -6,7 +6,7 @@ import { FileGlyph } from "../features/files/components/FileTable";
 import { useFileActions } from "../features/files/hooks/useFileActions";
 import { LoadingRows, StatusView } from "../components/ui/StatusView";
 import { formatBytes, formatDate } from "../lib/format";
-import { userMessage } from "../lib/messages";
+import { fileMessage } from "../lib/messages";
 
 export const FileDetailsPage = () => {
   const { fileId = "" } = useParams();
@@ -21,7 +21,7 @@ export const FileDetailsPage = () => {
   return (
     <div className="page-content detail-page">
       <Link to="/files" className="back-link"><ArrowLeft size={17} /> Back to my files</Link>
-      {isPending ? <LoadingRows count={3} /> : isError || !file ? <StatusView kind="error" title="File unavailable" description={userMessage(error, "This file could not be found.")} onRetry={() => refetch()} /> : (
+      {isPending ? <LoadingRows count={3} /> : isError || !file ? <StatusView kind="error" title="File unavailable" description={fileMessage(error, "This file could not be found.")} onRetry={() => refetch()} /> : (
         <>
           <div className="detail-heading"><FileGlyph file={file} /><div><span className="eyebrow">FILE DETAILS</span><h1>{file.originalName}</h1><p>{file.category} <span aria-hidden="true">·</span> {formatBytes(file.size)}</p></div></div>
           <div className="detail-actions">

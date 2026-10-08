@@ -1,87 +1,32 @@
 import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, FileUp, Plus, UploadCloud, X } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useFilesRepository } from "../features/files/api/files-context";
-import { isApiError } from "../features/files/api/api-error";
+import { CheckCircle2, CircleStop, FileUp, Plus, UploadCloud, X } from "lucide-react";
 import { FILE_CATEGORIES } from "../features/files/model/file.types";
 import type { Category } from "../features/files/model/file.types";
-import { validateUploadFile } from "../features/upload/upload-service";
+import { useUploadQueue } from "../features/upload/upload-queue-context";
+import type { QueueItem } from "../features/upload/upload-queue-context";
 import { formatBytes } from "../lib/format";
-import { userMessage } from "../lib/messages";
-import { useToast } from "../components/ui/toast-context";
 
-interface QueueItem {
-  id: string;
-  file: File;
-  status: "ready" | "uploading" | "complete" | "error";
-  progress: number;
-  error?: string | undefined;
-  retryable?: boolean;
-}
+const statusText = (item: QueueItem): string => {
+  if (item.status === "ready") return "Ready";
+  if (item.status === "uploading") return `Uploading ${item.progress}%`;
+  if (item.status === "complete") return `Uploaded to ${item.category}`;
+  return item.error ?? "Upload failed.";
+};
+
+const canChooseCategory = (item: QueueItem): boolean =>
+  item.status === "ready" || item.status === "uploading" || (item.status === "error" && !!item.retryable);
 
 export const UploadPage = () => {
-  const repository = useFilesRepository();
-  const queryClient = useQueryClient();
+  const { queue, uploading, addFiles, setCategory, retry, remove, clear, uploadAll, cancel } = useUploadQueue();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [category, setCategory] = useState<Category | "">("");
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [formError, setFormError] = useState("");
-  const { notify } = useToast();
-
-  const addFiles = (selected: FileList | File[]) => {
-    const items = Array.from(selected).map((file): QueueItem => {
-      const error = validateUploadFile(file);
-      return {
-        id: crypto.randomUUID(),
-        file,
-        status: error ? "error" : "ready",
-        progress: 0,
-        ...(error ? { error, retryable: false } : {}),
-      };
-    });
-    setQueue((current) => [...current, ...items]);
-    if (items.some((item) => item.status === "ready")) setFormError("");
-  };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
     if (!uploading && event.dataTransfer.files.length) addFiles(event.dataTransfer.files);
-  };
-
-  const updateItem = (id: string, change: Partial<QueueItem>) => {
-    setQueue((current) => current.map((item) => item.id === id ? { ...item, ...change } : item));
-  };
-
-  const uploadAll = async () => {
-    if (!category) {
-      setFormError("Choose a category before uploading.");
-      return;
-    }
-    const pending = queue.filter((item) => item.status === "ready");
-    if (!pending.length) return;
-    setFormError("");
-    setUploading(true);
-    let completed = 0;
-    for (const item of pending) {
-      updateItem(item.id, { status: "uploading", progress: 0 });
-      try {
-        await repository.uploadFile(item.file, category, (progress) => updateItem(item.id, { progress }));
-        updateItem(item.id, { status: "complete", progress: 100 });
-        completed += 1;
-      } catch (error) {
-        updateItem(item.id, { status: "error", error: userMessage(error, "Upload failed. Please try again."), retryable: !isApiError(error) || error.retryable });
-      }
-    }
-    if (completed) {
-      await queryClient.invalidateQueries({ queryKey: ["files"] });
-      notify(`${completed} ${completed === 1 ? "file" : "files"} uploaded.`);
-    }
-    setUploading(false);
   };
 
   const readyCount = queue.filter((item) => item.status === "ready").length;
@@ -102,25 +47,35 @@ export const UploadPage = () => {
           </div>
           {queue.length > 0 && (
             <section className="upload-queue" aria-labelledby="queue-heading">
-              <div className="section-heading"><h2 id="queue-heading">Upload queue <span className="count-pill">{queue.length}</span></h2>{!uploading && <button className="text-button" type="button" onClick={() => setQueue((current) => current.filter((item) => item.status === "uploading"))}>Clear queue</button>}</div>
+              <div className="section-heading"><h2 id="queue-heading">Upload queue <span className="count-pill">{queue.length}</span></h2>{!uploading && <button className="text-button" type="button" onClick={clear}>Clear queue</button>}</div>
               <ul>
-                {queue.map((item) => <li key={item.id} className="upload-item">
-                  <span className="upload-item__icon">{item.status === "complete" ? <CheckCircle2 size={20} /> : <FileUp size={20} />}</span>
-                  <div className="upload-item__body"><strong title={item.file.name}>{item.file.name}</strong><span>{formatBytes(item.file.size)} <span aria-hidden="true">·</span> {item.status === "ready" ? "Ready" : item.status === "uploading" ? `Uploading ${item.progress}%` : item.status === "complete" ? "Uploaded" : item.error}</span>{item.status === "uploading" && <progress max="100" value={item.progress} aria-label={`Upload progress for ${item.file.name}`} />}</div>
-                  {!uploading && item.status === "error" && item.retryable && <button type="button" className="text-button" onClick={() => updateItem(item.id, { status: "ready", progress: 0, error: undefined, retryable: false })}>Retry</button>}
-                  {!uploading && <button type="button" className="icon-button" title="Remove from queue" aria-label={`Remove ${item.file.name} from queue`} onClick={() => setQueue((current) => current.filter((entry) => entry.id !== item.id))}><X size={17} /></button>}
-                </li>)}
+                {queue.map((item) => (
+                  <li key={item.id} className="upload-item">
+                    <span className="upload-item__icon">{item.status === "complete" ? <CheckCircle2 size={20} /> : <FileUp size={20} />}</span>
+                    <div className="upload-item__body">
+                      <strong title={item.file.name}>{item.file.name}</strong>
+                      <span>{formatBytes(item.file.size)} <span aria-hidden="true">·</span> {statusText(item)}</span>
+                      {item.status === "uploading" && <progress max="100" value={item.progress} aria-label={`Upload progress for ${item.file.name}`} />}
+                    </div>
+                    {canChooseCategory(item) && (
+                      <select className="upload-item__category" aria-label={`Category for ${item.file.name}`} value={item.category} disabled={uploading} onChange={(event) => setCategory(item.id, event.target.value as Category)}>
+                        {FILE_CATEGORIES.map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    )}
+                    {!uploading && item.status === "error" && item.retryable && <button type="button" className="text-button" onClick={() => retry(item.id)}>Retry</button>}
+                    {!uploading && <button type="button" className="icon-button" title="Remove from queue" aria-label={`Remove ${item.file.name} from queue`} onClick={() => remove(item.id)}><X size={17} /></button>}
+                  </li>
+                ))}
               </ul>
             </section>
           )}
         </div>
-        <aside className="upload-settings" aria-label="Upload settings">
-          <h2>Upload settings</h2>
-          <p>Choose where these files belong.</p>
-          <label className="field"><span>Category <span aria-hidden="true">*</span></span><select value={category} disabled={uploading} onChange={(event) => { setCategory(event.target.value as Category | ""); setFormError(""); }}><option value="">Select a category</option>{FILE_CATEGORIES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-          <p className="upload-settings__hint">The selected category applies to all files in this queue.</p>
-          {formError && <div className="inline-alert" role="alert">{formError}</div>}
-          <button type="button" className="button button--primary upload-settings__submit" onClick={uploadAll} disabled={uploading || !readyCount}><UploadCloud size={18} /> {uploading ? "Uploading..." : `Upload ${readyCount} ${readyCount === 1 ? "file" : "files"}`}</button>
+        <aside className="upload-settings" aria-label="Upload summary">
+          <h2>Upload summary</h2>
+          <p>Each file gets a category from its type. Change any of them in the queue before uploading.</p>
+          <button type="button" className="button button--primary upload-settings__submit" onClick={() => void uploadAll()} disabled={uploading || !readyCount}><UploadCloud size={18} /> {uploading ? "Uploading..." : `Upload ${readyCount} ${readyCount === 1 ? "file" : "files"}`}</button>
+          {uploading && <button type="button" className="button button--secondary upload-settings__cancel" onClick={cancel}><CircleStop size={17} /> Cancel upload</button>}
+          {uploading && <p className="upload-settings__hint">Uploads continue if you open another page. Closing this tab stops them.</p>}
           {completeCount > 0 && <Link className="text-link" to="/files">View uploaded files</Link>}
         </aside>
       </div>
