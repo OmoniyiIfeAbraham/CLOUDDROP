@@ -1,20 +1,27 @@
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
-# Copy dependency files
 COPY package*.json ./
+# Copy dependency files
 COPY prisma ./prisma/
 
-# Install dependencies and generate Prisma client
 RUN npm ci
+# Install dependencies and generate Prisma client
 RUN npx prisma generate
 
 # Copy source code
 COPY . .
 
-# Build application if TypeScript is used
-RUN npm run build --if-present
+COPY prisma ./prisma
+COPY prisma7.config.ts ./
+
+RUN npx prisma generate
+
+COPY tsconfig.json ./
+COPY src ./src
+
+RUN npm run build
 
 EXPOSE 5000
 
