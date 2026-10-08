@@ -19,6 +19,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      JWT_SECRET: ci-test-jwt-secret
 
     defaults:
       run:
