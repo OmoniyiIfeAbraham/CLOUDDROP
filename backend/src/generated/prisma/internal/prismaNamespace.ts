@@ -398,7 +398,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
-  File: 'File'
+  File: 'File',
+  Share: 'Share'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -414,7 +415,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "file"
+    modelProps: "user" | "file" | "share"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -566,6 +567,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Share: {
+      payload: Prisma.$SharePayload<ExtArgs>
+      fields: Prisma.ShareFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShareFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShareFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>
+        }
+        findFirst: {
+          args: Prisma.ShareFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShareFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>
+        }
+        findMany: {
+          args: Prisma.ShareFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>[]
+        }
+        create: {
+          args: Prisma.ShareCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>
+        }
+        createMany: {
+          args: Prisma.ShareCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShareCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>[]
+        }
+        delete: {
+          args: Prisma.ShareDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>
+        }
+        update: {
+          args: Prisma.ShareUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>
+        }
+        deleteMany: {
+          args: Prisma.ShareDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShareUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShareUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>[]
+        }
+        upsert: {
+          args: Prisma.ShareUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SharePayload>
+        }
+        aggregate: {
+          args: Prisma.ShareAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShare>
+        }
+        groupBy: {
+          args: Prisma.ShareGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShareGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShareCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShareCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -631,6 +706,17 @@ export const FileScalarFieldEnum = {
 } as const
 
 export type FileScalarFieldEnum = (typeof FileScalarFieldEnum)[keyof typeof FileScalarFieldEnum]
+
+
+export const ShareScalarFieldEnum = {
+  id: 'id',
+  fileId: 'fileId',
+  token: 'token',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type ShareScalarFieldEnum = (typeof ShareScalarFieldEnum)[keyof typeof ShareScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -877,6 +963,7 @@ export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaC
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   file?: Prisma.FileOmit
+  share?: Prisma.ShareOmit
 }
 
 /* Types for Logging */
