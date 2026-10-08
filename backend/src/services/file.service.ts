@@ -9,19 +9,28 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
+type FileCategory =
+  | "Documents"
+  | "Images"
+  | "Videos"
+  | "Audio"
+  | "Archives"
+  | "Other";
+
+interface ListUserFilesOptions {
+  search?: string;
+  category?: FileCategory | undefined;
+  page?: number;
+  limit?: number;
+}
+
 export const createFile = async (
   userId: string,
   originalName: string,
   s3Key: string,
   mimeType: string,
   size: number,
-  category:
-    | "Documents"
-    | "Images"
-    | "Videos"
-    | "Audio"
-    | "Archives"
-    | "Other",
+  category: FileCategory,
 ) => {
   return prisma.file.create({
     data: {
@@ -90,4 +99,56 @@ export const searchUserFiles = async (
       createdAt: "desc",
     },
   });
+};
+
+export const listUserFiles = async (
+  userId: string,
+  options: ListUserFilesOptions = {},
+) => {
+  const {
+    search = "",
+    category,
+    page = 1,
+    limit = 10,
+  } = options;
+
+  const where = {
+    userId,
+    ...(search
+      ? {
+          originalName: {
+            contains: search,
+            mode: "insensitive" as const,
+          },
+        }
+      : {}),
+    ...(category ? { category } : {}),
+  };
+
+  const skip = (page - 1) * limit;
+
+  const [files, total] = await Promise.all([
+    prisma.file.findMany({
+      where,
+      orderBy: {
+        createdAt: "desc",
+      },
+      skip,
+      take: limit,
+    }),
+
+    prisma.file.count({
+      where,
+    }),
+  ]);
+
+  return {
+    files,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
