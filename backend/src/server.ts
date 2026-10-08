@@ -5,6 +5,7 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/not-found.middleware.js";
 import { validateEnv } from "./utils/env.utils.js";
 import morgan from "morgan";
+import authRoutes from "./routes/auth.routes.js";
 
 dotenv.config();
 
@@ -16,6 +17,10 @@ const app = express();
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
+
+// Auth routes
+app.use("/api/v1/auth", authRoutes);
+
 app.use("/api/v1", (_req, _res, next) => {
   next();
 });
@@ -40,5 +45,3 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 export default app;
-
-
