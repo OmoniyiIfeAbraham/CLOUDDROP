@@ -7,6 +7,7 @@ import { z } from "zod";
 import { useAuth } from "../features/auth/auth-context";
 import { userMessage } from "../lib/messages";
 import { USE_MOCK_API } from "../lib/runtime";
+import { usePageTitle } from "../lib/use-page-title";
 
 const authSchema = z.object({
   firstName: z.string().trim().optional(),
@@ -24,6 +25,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isRegister = mode === "register";
+  usePageTitle(isRegister ? "Create account" : "Sign in");
   const { register: bind, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(authSchema),
     defaultValues: { firstName: "", lastName: "", email: "", password: "" },

@@ -7,6 +7,7 @@ import { useFileActions } from "../features/files/hooks/useFileActions";
 import { LoadingRows, StatusView } from "../components/ui/StatusView";
 import { formatBytes, formatDate } from "../lib/format";
 import { fileMessage } from "../lib/messages";
+import { usePageTitle } from "../lib/use-page-title";
 
 export const FileDetailsPage = () => {
   const { fileId = "" } = useParams();
@@ -17,6 +18,7 @@ export const FileDetailsPage = () => {
     queryFn: () => repository.getFile(fileId),
     enabled: !!fileId,
   });
+  usePageTitle(file?.originalName);
 
   return (
     <div className="page-content detail-page">
