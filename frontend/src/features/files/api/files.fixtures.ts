@@ -95,6 +95,7 @@ export const dashboardStatsFixture: DashboardStats = {
     (total, file) => total + file.size,
     0,
   ),
+  sharedFiles: 0,
   filesByCategory: {
     Documents: 1,
     Images: 1,

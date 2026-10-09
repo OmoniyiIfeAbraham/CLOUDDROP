@@ -1,15 +1,18 @@
 import { ApiError } from "./api-error";
 import type { ApiClient } from "./api-client";
+import { DEFAULT_PAGE_SIZE } from "./files-repository";
 import type { FilesRepository } from "./files-repository";
 import type {
   Category,
   DashboardStats,
   DownloadResult,
+  FileListQuery,
+  FilePage,
   FileRecord,
   ShareResult,
 } from "../model/file.types";
 import { uploadFileHttp } from "../../upload/upload-service";
-import { parseDownloadResult, parseFilePayload, parseFilesPayload, parseShareResult } from "./file-contracts";
+import { parseDashboardStats, parseDownloadResult, parseFilePage, parseFilePayload, parseShareResult } from "./file-contracts";
 
 const filePath = (fileId: string): string =>
   "/files/" + encodeURIComponent(fileId);
@@ -23,22 +26,17 @@ const unavailable = (feature: string): ApiError =>
 export const createHttpFilesRepository = (
   client: ApiClient,
 ): FilesRepository => ({
-  async listFiles(): Promise<FileRecord[]> {
-    return parseFilesPayload(await client.request<unknown>("/files"));
-  },
-
-  async searchFiles(search: string): Promise<FileRecord[]> {
-    const normalizedSearch = search.trim();
-
-    if (!normalizedSearch) {
-      return parseFilesPayload(await client.request<unknown>("/files"));
-    }
-
+  async listFiles(query: FileListQuery = {}): Promise<FilePage> {
     const data = await client.request<unknown>("/files", {
-      query: { search: normalizedSearch },
+      query: {
+        search: query.search?.trim() || undefined,
+        category: query.category,
+        page: query.page ?? 1,
+        limit: query.limit ?? DEFAULT_PAGE_SIZE,
+      },
     });
 
-    return parseFilesPayload(data);
+    return parseFilePage(data);
   },
 
   async getFile(fileId: string): Promise<FileRecord> {
@@ -71,7 +69,7 @@ export const createHttpFilesRepository = (
     return Promise.reject(unavailable("Categories"));
   },
 
-  getDashboardStats(): Promise<DashboardStats> {
-    return Promise.reject(unavailable("Dashboard statistics"));
+  async getDashboardStats(): Promise<DashboardStats> {
+    return parseDashboardStats(await client.request<unknown>("/dashboard/stats"));
   },
 });

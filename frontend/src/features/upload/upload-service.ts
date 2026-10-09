@@ -5,7 +5,8 @@ import { API_BASE_URL, sessionToken } from "../../lib/runtime";
 import { SESSION_EXPIRED_EVENT } from "../../lib/api";
 import { parseFileRecord } from "../files/api/file-contracts";
 
-export const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
+// Matches the backend's multer limit (backend/src/middleware/upload.middleware.ts).
+export const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 export const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -69,7 +70,7 @@ export const suggestCategory = (mimeType: string): Category => {
 };
 
 export const validateUploadFile = (file: File): string | null => {
-  if (file.size > MAX_FILE_SIZE) return "File exceeds the 2 GB upload limit.";
+  if (file.size > MAX_FILE_SIZE) return "File exceeds the 25 MB upload limit.";
   if (!ALLOWED_MIME_TYPES.has(file.type)) return "This file type is not supported.";
   return null;
 };

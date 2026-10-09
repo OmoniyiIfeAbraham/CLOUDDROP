@@ -77,7 +77,7 @@ describe("upload queue states", () => {
     selectFiles([new File(["x"], "run.exe", { type: "application/x-msdownload" }), oversized]);
 
     expect(queueItem("run.exe")).toHaveTextContent("This file type is not supported.");
-    expect(queueItem("huge.pdf")).toHaveTextContent("File exceeds the 2 GB upload limit.");
+    expect(queueItem("huge.pdf")).toHaveTextContent("File exceeds the 25 MB upload limit.");
     expect(screen.queryByRole("combobox", { name: "Category for run.exe" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload 0 files" })).toBeDisabled();
     expect(uploadFile).not.toHaveBeenCalled();

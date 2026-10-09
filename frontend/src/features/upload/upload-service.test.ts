@@ -68,7 +68,16 @@ describe("upload validation", () => {
     expect(validateUploadFile(new File(["x"], "run.exe", { type: "application/x-msdownload" }))).toMatch(/not supported/);
     const oversized = new File(["x"], "large.pdf", { type: "application/pdf" });
     Object.defineProperty(oversized, "size", { value: MAX_FILE_SIZE + 1 });
-    expect(validateUploadFile(oversized)).toMatch(/2 GB/);
+    expect(validateUploadFile(oversized)).toBe("File exceeds the 25 MB upload limit.");
+  });
+
+  it("accepts files up to exactly 25 MB, like the backend", () => {
+    const atLimit = new File(["x"], "limit.pdf", { type: "application/pdf" });
+    Object.defineProperty(atLimit, "size", { value: 26_214_400 });
+    expect(validateUploadFile(atLimit)).toBeNull();
+    const overLimit = new File(["x"], "over.pdf", { type: "application/pdf" });
+    Object.defineProperty(overLimit, "size", { value: 26_214_401 });
+    expect(validateUploadFile(overLimit)).toMatch(/25 MB/);
   });
 
   it("suggests the same category the backend would assign", () => {

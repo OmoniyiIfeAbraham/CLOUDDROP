@@ -7,6 +7,7 @@ import { z } from "zod";
 import { useAuth } from "../features/auth/auth-context";
 import { userMessage } from "../lib/messages";
 import { USE_MOCK_API } from "../lib/runtime";
+import { usePageTitle } from "../lib/use-page-title";
 
 const authSchema = z.object({
   firstName: z.string().trim().optional(),
@@ -24,6 +25,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isRegister = mode === "register";
+  usePageTitle(isRegister ? "Create account" : "Sign in");
   const { register: bind, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(authSchema),
     defaultValues: { firstName: "", lastName: "", email: "", password: "" },
@@ -44,7 +46,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
       const destination = (location.state as { from?: string } | null)?.from;
       navigate(destination && destination.startsWith("/") ? destination : "/", { replace: true });
     } catch (error) {
-      setRequestError(userMessage(error, isRegister ? "We could not create your account. If this email is already registered, sign in instead." : "Sign in failed. Check your details and try again."));
+      setRequestError(userMessage(error, isRegister ? "We could not create your account. Please try again." : "Sign in failed. Check your details and try again."));
     }
   });
 
@@ -67,7 +69,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
               </div>
             )}
             <label className="field"><span>Email address</span><input type="email" autoComplete="email" placeholder="you@example.com" {...bind("email")} aria-invalid={!!errors.email} />{errors.email && <small role="alert">{errors.email.message}</small>}</label>
-            <label className="field"><span>Password</span><span className="password-field"><input type={showPassword ? "text" : "password"} autoComplete={isRegister ? "new-password" : "current-password"} placeholder={isRegister ? "At least 8 characters" : "Enter your password"} {...bind("password")} aria-invalid={!!errors.password} /><button className="icon-button" type="button" title={showPassword ? "Hide password" : "Show password"} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span>{errors.password && <small role="alert">{errors.password.message}</small>}</label>
+            <label className="field"><span>Password</span><span className={`password-field ${errors.password ? "password-field--invalid" : ""}`}><input type={showPassword ? "text" : "password"} autoComplete={isRegister ? "new-password" : "current-password"} placeholder={isRegister ? "At least 8 characters" : "Enter your password"} {...bind("password")} aria-invalid={!!errors.password} /><button className="icon-button" type="button" title={showPassword ? "Hide password" : "Show password"} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span>{errors.password && <small role="alert">{errors.password.message}</small>}</label>
             {requestError && <div className="inline-alert" role="alert">{requestError}</div>}
             <button className="button button--primary auth-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "Please wait..." : isRegister ? "Create account" : "Sign in"}</button>
           </form>

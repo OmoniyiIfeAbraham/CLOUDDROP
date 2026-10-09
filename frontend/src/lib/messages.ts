@@ -2,11 +2,14 @@ import { ApiError } from "../features/files/api/api-error";
 
 const knownMessages: Record<string, string> = {
   UNAUTHORIZED: "Your session has ended. Please sign in again.",
+  INVALID_CREDENTIALS: "Incorrect email or password.",
+  EMAIL_ALREADY_REGISTERED: "An account with this email already exists. Sign in instead.",
   INVALID_RESPONSE: "The server returned unexpected data. Please try again.",
   NETWORK_ERROR: "Could not connect. Check your connection and try again.",
-  FILE_TOO_LARGE: "This file exceeds the 2 GB upload limit.",
+  FILE_TOO_LARGE: "This file exceeds the 25 MB upload limit.",
   PAYLOAD_TOO_LARGE: "The server rejected this file because it is too large.",
   UNSUPPORTED_FILE_TYPE: "This file type is not supported.",
+  INVALID_FILE_UPLOAD: "This file could not be uploaded. Check it and try again.",
   INVALID_UPLOAD: "Check the file and category, then try again.",
   UPLOAD_CANCELLED: "Upload cancelled.",
   FILES_RETRIEVAL_FAILED: "Your files could not be loaded.",
