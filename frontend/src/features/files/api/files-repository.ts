@@ -2,13 +2,14 @@ import type {
   Category,
   DashboardStats,
   DownloadResult,
+  FileListQuery,
+  FilePage,
   FileRecord,
   ShareResult,
 } from "../model/file.types";
 
 export interface FilesRepository {
-  listFiles(): Promise<FileRecord[]>;
-  searchFiles(search: string): Promise<FileRecord[]>;
+  listFiles(query?: FileListQuery): Promise<FilePage>;
   getFile(fileId: string): Promise<FileRecord>;
   getDownload(fileId: string): Promise<DownloadResult>;
   getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult>;
@@ -17,3 +18,6 @@ export interface FilesRepository {
   getCategories(): Promise<Category[]>;
   getDashboardStats(): Promise<DashboardStats>;
 }
+
+// Matches the backend's default page size for GET /files.
+export const DEFAULT_PAGE_SIZE = 10;

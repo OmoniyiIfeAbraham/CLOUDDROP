@@ -3,11 +3,14 @@ import {
   categoryFixtures,
   normalFileFixtures,
 } from "./files.fixtures";
+import { DEFAULT_PAGE_SIZE } from "./files-repository";
 import type { FilesRepository } from "./files-repository";
 import type {
   Category,
   DashboardStats,
   DownloadResult,
+  FileListQuery,
+  FilePage,
   FileRecord,
   ShareResult,
 } from "../model/file.types";
@@ -44,6 +47,7 @@ export const createMockFilesRepository = (
   let files = (options.files ?? normalFileFixtures).map(cloneFile);
   const categories = [...(options.categories ?? categoryFixtures)];
   const failures = options.failures ?? {};
+  let sharesCreated = 0;
 
   const failWhenConfigured = (operation: MockFilesOperation): void => {
     const failure = failures[operation];
@@ -64,24 +68,23 @@ export const createMockFilesRepository = (
   };
 
   return {
-    async listFiles(): Promise<FileRecord[]> {
-      failWhenConfigured("list");
-      return files.map(cloneFile);
-    },
+    async listFiles(query: FileListQuery = {}): Promise<FilePage> {
+      const search = query.search?.trim().toLocaleLowerCase() ?? "";
+      failWhenConfigured(search ? "search" : "list");
+      const page = query.page ?? 1;
+      const limit = query.limit ?? DEFAULT_PAGE_SIZE;
+      const matching = files
+        .filter((file) => !search || file.originalName.toLocaleLowerCase().includes(search))
+        .filter((file) => !query.category || file.category === query.category)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-    async searchFiles(search: string): Promise<FileRecord[]> {
-      failWhenConfigured("search");
-      const normalizedSearch = search.trim().toLocaleLowerCase();
-
-      if (!normalizedSearch) {
-        return files.map(cloneFile);
-      }
-
-      return files
-        .filter((file) =>
-          file.originalName.toLocaleLowerCase().includes(normalizedSearch),
-        )
-        .map(cloneFile);
+      return {
+        files: matching.slice((page - 1) * limit, page * limit).map(cloneFile),
+        page,
+        limit,
+        total: matching.length,
+        totalPages: Math.ceil(matching.length / limit),
+      };
     },
 
     async getFile(fileId: string): Promise<FileRecord> {
@@ -108,6 +111,7 @@ export const createMockFilesRepository = (
     async getTemporaryShare(fileId: string, ttlHours = 24): Promise<ShareResult> {
       failWhenConfigured("share");
       const file = findFile(fileId);
+      sharesCreated += 1;
 
       return {
         file: {
@@ -189,6 +193,7 @@ export const createMockFilesRepository = (
       return {
         totalFiles: files.length,
         totalStorageBytes,
+        sharedFiles: sharesCreated,
         filesByCategory,
       };
     },
