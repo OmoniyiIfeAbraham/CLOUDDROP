@@ -40,7 +40,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       if (version !== sessionVersion.current) return;
-      if (isApiError(error) && (error.code === "UNAUTHORIZED" || error.status === 401)) {
+      // A rejected token, or an account that no longer exists, ends the session.
+      if (isApiError(error) && (error.code === "UNAUTHORIZED" || error.status === 401 || error.code === "USER_NOT_FOUND")) {
         logout();
       } else {
         setStatus("restore-error");

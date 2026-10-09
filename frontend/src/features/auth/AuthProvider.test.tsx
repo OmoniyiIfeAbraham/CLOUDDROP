@@ -95,4 +95,12 @@ describe("AuthProvider session boundaries", () => {
     expect(sessionToken.get()).toBeNull();
     expect(queryClient.getQueryData(["files", "all"])).toBeUndefined();
   });
+
+  it("signs out when the account no longer exists", async () => {
+    sessionToken.set("orphaned-token");
+    vi.spyOn(httpAuthService, "me").mockRejectedValue(new ApiError({ message: "User not found", code: "USER_NOT_FOUND", status: 404 }));
+    renderAuth();
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("anonymous"));
+    expect(sessionToken.get()).toBeNull();
+  });
 });

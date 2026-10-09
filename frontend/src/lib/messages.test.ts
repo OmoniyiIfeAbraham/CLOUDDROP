@@ -16,6 +16,10 @@ describe("user-facing error messages", () => {
     expect(fileMessage(new Error("boom"), "Could not delete.")).toBe("Could not delete.");
     expect(userMessage(new ApiError({ message: "Too large", code: "PAYLOAD_TOO_LARGE", status: 413 })))
       .toBe("The server rejected this file because it is too large.");
+    expect(userMessage(new ApiError({ message: "Invalid email or password", code: "INVALID_CREDENTIALS", status: 401 })))
+      .toBe("Incorrect email or password.");
+    expect(userMessage(new ApiError({ message: "Email already registered", code: "EMAIL_ALREADY_REGISTERED", status: 409 })))
+      .toBe("An account with this email already exists. Sign in instead.");
     expect(userMessage(new ApiError({ message: "Boom", code: "INTERNAL_SERVER_ERROR", status: 500 })))
       .toBe("Something went wrong. Please try again.");
   });

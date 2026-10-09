@@ -46,7 +46,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
       const destination = (location.state as { from?: string } | null)?.from;
       navigate(destination && destination.startsWith("/") ? destination : "/", { replace: true });
     } catch (error) {
-      setRequestError(userMessage(error, isRegister ? "We could not create your account. If this email is already registered, sign in instead." : "Sign in failed. Check your details and try again."));
+      setRequestError(userMessage(error, isRegister ? "We could not create your account. Please try again." : "Sign in failed. Check your details and try again."));
     }
   });
 
