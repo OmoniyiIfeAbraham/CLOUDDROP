@@ -184,9 +184,10 @@ export const createApiClient = (options: ApiClientOptions): ApiClient => {
       if (!response.ok) {
         if (response.status === 401) {
           if (auth === "required" && token) options.onUnauthorized?.(token);
+          // Keep the backend's code (for example INVALID_CREDENTIALS on a failed sign-in).
           throw new ApiError({
             message: isApiFailure(payload) ? payload.message : "Authentication is required.",
-            code: "UNAUTHORIZED",
+            code: isApiFailure(payload) ? payload.error.code : "UNAUTHORIZED",
             status: 401,
           });
         }

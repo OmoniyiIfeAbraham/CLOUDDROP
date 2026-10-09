@@ -185,7 +185,7 @@ describe("ApiClient", () => {
       onUnauthorized,
     });
 
-    await expect(client.request("/auth/login", { auth: "optional", method: "POST" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(client.request("/auth/login", { auth: "optional", method: "POST" })).rejects.toMatchObject({ code: "INVALID_CREDENTIALS", status: 401 });
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });
