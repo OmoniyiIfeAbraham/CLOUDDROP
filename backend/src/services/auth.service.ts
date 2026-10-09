@@ -6,6 +6,7 @@ import {
   comparePassword,
   generateToken,
 } from "../utils/auth.utils.js";
+import { ApiError } from "../utils/api-error.js";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -24,7 +25,11 @@ export const registerUser = async (
   });
 
   if (existingUser) {
-    throw new Error("Email already registered");
+    throw new ApiError(
+      409,
+      "Email already registered",
+      "EMAIL_ALREADY_REGISTERED",
+    );
   }
 
   const passwordHash = await hashPassword(password);
@@ -49,7 +54,7 @@ export const registerUser = async (
     },
     token,
   };
-  };
+};
 
 export const loginUser = async (
   email: string,
@@ -60,7 +65,11 @@ export const loginUser = async (
   });
 
   if (!user) {
-    throw new Error("Invalid email or password");
+    throw new ApiError(
+      401,
+      "Invalid email or password",
+      "INVALID_CREDENTIALS",
+    );
   }
 
   const passwordIsValid = await comparePassword(
@@ -69,7 +78,11 @@ export const loginUser = async (
   );
 
   if (!passwordIsValid) {
-    throw new Error("Invalid email or password");
+    throw new ApiError(
+      401,
+      "Invalid email or password",
+      "INVALID_CREDENTIALS",
+    );
   }
 
   const token = generateToken(user.id);
@@ -83,7 +96,7 @@ export const loginUser = async (
     },
     token,
   };
-  };
+};
 
 export const getCurrentUser = async (userId: string) => {
   const user = await prisma.user.findUnique({
@@ -97,9 +110,12 @@ export const getCurrentUser = async (userId: string) => {
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new ApiError(
+      404,
+      "User not found",
+      "USER_NOT_FOUND",
+    );
   }
 
   return user;
 };
-
