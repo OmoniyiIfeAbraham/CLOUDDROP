@@ -31,8 +31,24 @@ export interface ShareResult {
   expiresIn: number;
 }
 
+export interface FileListQuery {
+  search?: string | undefined;
+  category?: Category | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+}
+
+export interface FilePage {
+  files: FileRecord[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface DashboardStats {
   totalFiles: number;
   totalStorageBytes: number;
+  sharedFiles: number;
   filesByCategory: Record<Category, number>;
 }

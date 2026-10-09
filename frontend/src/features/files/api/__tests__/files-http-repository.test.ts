@@ -11,12 +11,14 @@ const success = (data?: unknown, status = 200): FetchResponse => ({
 });
 
 describe("HTTP file actions", () => {
-  it("validates list and search data and removes backend-only metadata", async () => {
+  it("requests pages with search and category, and removes backend-only metadata", async () => {
     const paths: string[] = [];
+    const page = (files: unknown[]) => success({ files, pagination: { page: 1, limit: 10, total: files.length, totalPages: 1 } });
     const replies = [
-      success({ files: [{ ...file, s3Key: "private/key" }] }),
-      success({ files: [{ ...file, s3Key: "private/key" }] }),
-      success({ files: [{ ...file, s3Key: "private/key" }] }),
+      page([{ ...file, s3Key: "private/key" }]),
+      page([{ ...file, s3Key: "private/key" }]),
+      page([]),
+      page([]),
     ];
     const client = createApiClient({
       baseUrl: "/api/v1",
@@ -28,14 +30,24 @@ describe("HTTP file actions", () => {
     });
     const repository = createHttpFilesRepository(client);
 
-    await expect(repository.listFiles()).resolves.toEqual([file]);
-    await expect(repository.searchFiles(" proposal ")).resolves.toEqual([file]);
-    await expect(repository.searchFiles("   ")).resolves.toEqual([file]);
-    expect(paths).toEqual(["/api/v1/files", "/api/v1/files?search=proposal", "/api/v1/files"]);
+    await expect(repository.listFiles()).resolves.toEqual({ files: [file], page: 1, limit: 10, total: 1, totalPages: 1 });
+    await repository.listFiles({ search: " proposal " });
+    await repository.listFiles({ search: "   ", category: "Images", page: 2, limit: 5 });
+    await repository.listFiles({ search: "", category: undefined });
+    expect(paths).toEqual([
+      "/api/v1/files?page=1&limit=10",
+      "/api/v1/files?search=proposal&page=1&limit=10",
+      "/api/v1/files?category=Images&page=2&limit=5",
+      "/api/v1/files?page=1&limit=10",
+    ]);
   });
 
   it("rejects malformed file payloads before pages render them", async () => {
-    const replies = [success({ files: "not-an-array" }), success({ file: { ...file, category: "Unknown" } })];
+    const replies = [
+      success({ files: "not-an-array", pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+      success({ files: [] }),
+      success({ file: { ...file, category: "Unknown" } }),
+    ];
     const client = createApiClient({
       baseUrl: "/api/v1",
       getToken: () => "token-123",
@@ -44,7 +56,30 @@ describe("HTTP file actions", () => {
     const repository = createHttpFilesRepository(client);
 
     await expect(repository.listFiles()).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    await expect(repository.listFiles()).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
     await expect(repository.getFile(file.id)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("reads dashboard totals from the stats endpoint", async () => {
+    const paths: string[] = [];
+    const filesByCategory = { Documents: 2, Images: 1, Videos: 0, Audio: 0, Archives: 0, Other: 0 };
+    const replies = [
+      success({ totalFiles: 3, totalStorage: 4096, sharedFiles: 1, filesByCategory }),
+      success({ totalFiles: 3, totalStorage: 4096, sharedFiles: 1, filesByCategory: { Documents: 2 } }),
+    ];
+    const client = createApiClient({
+      baseUrl: "/api/v1",
+      getToken: () => "token-123",
+      fetchImpl: async (path: string) => {
+        paths.push(path);
+        return replies.shift()!;
+      },
+    });
+    const repository = createHttpFilesRepository(client);
+
+    await expect(repository.getDashboardStats()).resolves.toEqual({ totalFiles: 3, totalStorageBytes: 4096, sharedFiles: 1, filesByCategory });
+    await expect(repository.getDashboardStats()).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    expect(paths[0]).toBe("/api/v1/dashboard/stats");
   });
 
   it("uses the implemented detail, download, share, and delete routes", async () => {

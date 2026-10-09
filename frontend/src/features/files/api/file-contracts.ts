@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ApiError } from "./api-error";
 import { FILE_CATEGORIES } from "../model/file.types";
-import type { DownloadResult, FileRecord, ShareResult } from "../model/file.types";
+import type { DashboardStats, DownloadResult, FilePage, FileRecord, ShareResult } from "../model/file.types";
 
 const fileRecordSchema = z.object({
   id: z.string().min(1),
@@ -14,7 +14,21 @@ const fileRecordSchema = z.object({
 });
 
 const filePayloadSchema = z.object({ file: fileRecordSchema });
-const filesPayloadSchema = z.object({ files: z.array(fileRecordSchema) });
+const filePageSchema = z.object({
+  files: z.array(fileRecordSchema),
+  pagination: z.object({
+    page: z.number().int().positive(),
+    limit: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+  }),
+});
+const dashboardStatsSchema = z.object({
+  totalFiles: z.number().int().nonnegative(),
+  totalStorage: z.number().nonnegative(),
+  sharedFiles: z.number().int().nonnegative(),
+  filesByCategory: z.record(z.enum(FILE_CATEGORIES), z.number().int().nonnegative()),
+});
 const downloadResultSchema = z.object({
   file: fileRecordSchema.pick({ id: true, originalName: true, mimeType: true, size: true }),
   downloadUrl: z.string(),
@@ -43,10 +57,17 @@ export const parseFilePayload = (value: unknown): FileRecord => {
   return result.data.file;
 };
 
-export const parseFilesPayload = (value: unknown): FileRecord[] => {
-  const result = filesPayloadSchema.safeParse(value);
+export const parseFilePage = (value: unknown): FilePage => {
+  const result = filePageSchema.safeParse(value);
   if (!result.success) throw invalidResponse();
-  return result.data.files;
+  return { files: result.data.files, ...result.data.pagination };
+};
+
+export const parseDashboardStats = (value: unknown): DashboardStats => {
+  const result = dashboardStatsSchema.safeParse(value);
+  if (!result.success) throw invalidResponse();
+  const { totalFiles, totalStorage, sharedFiles, filesByCategory } = result.data;
+  return { totalFiles, totalStorageBytes: totalStorage, sharedFiles, filesByCategory };
 };
 
 export const parseDownloadResult = (value: unknown): DownloadResult => {
