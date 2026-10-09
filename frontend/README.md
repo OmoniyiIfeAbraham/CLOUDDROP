@@ -62,7 +62,7 @@ Each step saves a screenshot under `test-results/`. The test also fetches the do
 E2E_BASE_URL=https://<deployed-host> VITE_USE_MOCK_API=false npm run test:e2e -- e2e/live-flow.spec.ts
 ```
 
-The file-library and full-flow tests also create unique test users. Populated file lists and category filtering need backend test data; the current backend does not offer server-side category filtering or pagination.
+The file-library and full-flow tests also create unique test users. Populated file lists, paging, and category filtering need backend test data.
 
 ## API integration
 
