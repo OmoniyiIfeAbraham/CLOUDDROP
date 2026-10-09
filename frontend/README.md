@@ -50,7 +50,7 @@ To check the file library's empty-list and search responses through that backend
 VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-files.spec.ts
 ```
 
-The file-library test also creates unique test users. Populated file lists, paging, and category filtering need backend test data.
+The file-library test also creates unique test users. Populated file lists and category filtering need backend test data; the current backend does not offer server-side category filtering or pagination.
 
 ## API integration
 
