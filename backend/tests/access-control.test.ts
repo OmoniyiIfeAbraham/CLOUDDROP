@@ -18,6 +18,7 @@ const protectedRoutes: Array<{
   { method: "delete", path: `/api/v1/files/${missingId}` },
   { method: "post", path: `/api/v1/files/${missingId}/share` },
   { method: "get", path: "/api/v1/dashboard/stats" },
+  { method: "get", path: "/api/v1/categories" },
 ];
 
 describe("API access control", () => {
