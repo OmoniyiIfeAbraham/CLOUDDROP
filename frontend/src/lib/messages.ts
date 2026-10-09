@@ -4,7 +4,7 @@ const knownMessages: Record<string, string> = {
   UNAUTHORIZED: "Your session has ended. Please sign in again.",
   INVALID_RESPONSE: "The server returned unexpected data. Please try again.",
   NETWORK_ERROR: "Could not connect. Check your connection and try again.",
-  FILE_TOO_LARGE: "This file exceeds the 2 GB upload limit.",
+  FILE_TOO_LARGE: "This file exceeds the 25 MB upload limit.",
   PAYLOAD_TOO_LARGE: "The server rejected this file because it is too large.",
   UNSUPPORTED_FILE_TYPE: "This file type is not supported.",
   INVALID_UPLOAD: "Check the file and category, then try again.",
