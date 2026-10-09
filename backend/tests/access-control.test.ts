@@ -18,7 +18,6 @@ const protectedRoutes: Array<{
   { method: "delete", path: `/api/v1/files/${missingId}` },
   { method: "post", path: `/api/v1/files/${missingId}/share` },
   { method: "get", path: "/api/v1/dashboard/stats" },
-  { method: "get", path: "/api/v1/categories" },
 ];
 
 describe("API access control", () => {
@@ -44,6 +43,21 @@ describe("API access control", () => {
       expect(response.body.error.code).toBe("UNAUTHORIZED");
     },
   );
+
+  it.each([
+    { label: "no token", token: undefined },
+    { label: "a bad token", token: "not-a-jwt" },
+  ])("returns the category catalog with $label", async ({ token }) => {
+    const call = request(app).get("/api/v1/categories");
+    const response = token
+      ? await call.set("Authorization", `Bearer ${token}`)
+      : await call;
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.categories).toEqual(expect.any(Array));
+    expect(response.body.data.categories.length).toBeGreaterThan(0);
+  });
 
   it("does not leak another user's file by id", async () => {
     const response = await request(app)
