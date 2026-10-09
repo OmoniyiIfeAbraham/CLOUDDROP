@@ -1,4 +1,4 @@
-# Phase 4 — API integration and security testing
+#API integration and security testing
 
 Owner: Kizito (KIZMAN)
 Branch: `feature/phase-4-api-security-testing`
