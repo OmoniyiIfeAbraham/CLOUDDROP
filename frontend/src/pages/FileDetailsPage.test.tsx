@@ -42,6 +42,7 @@ describe("file details", () => {
     });
 
     expect(await screen.findByRole("heading", { name: file.originalName })).toBeVisible();
+    await waitFor(() => expect(document.title).toBe(`${file.originalName} · CloudDrop`));
     expect(screen.getByRole("region", { name: "File information" })).toHaveTextContent(file.mimeType);
     expect(document.body).not.toHaveTextContent("private/users/secret-object");
     expect(screen.getByRole("button", { name: "Download" })).toBeVisible();

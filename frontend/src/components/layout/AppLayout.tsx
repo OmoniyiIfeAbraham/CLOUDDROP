@@ -4,6 +4,7 @@ import { Cloud, Files, House, LogOut, Menu, UploadCloud, X } from "lucide-react"
 import { useAuth } from "../../features/auth/auth-context";
 import { useUploadQueue } from "../../features/upload/upload-queue-context";
 import { USE_MOCK_API } from "../../lib/runtime";
+import { usePageTitle } from "../../lib/use-page-title";
 import { ErrorBoundary } from "../ui/ErrorBoundary";
 
 const navItems = [
@@ -27,6 +28,7 @@ export const AppLayout = () => {
     : location.pathname.startsWith("/upload")
       ? "Upload"
       : "Overview";
+  usePageTitle(currentTitle);
   const uploadsLeft = queue.filter((item) => item.status === "ready" || item.status === "uploading").length;
   const showUploadStatus = uploading && !location.pathname.startsWith("/upload");
 
