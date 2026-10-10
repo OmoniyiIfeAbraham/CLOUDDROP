@@ -28,16 +28,42 @@ services:
     networks:
       - clouddrop_default
 
+  frontend:
+    image: ${FRONTEND_IMAGE}
+    container_name: clouddrop-frontend
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1/"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - clouddrop_default
+
   nginx:
     image: nginx:alpine
     container_name: clouddrop-nginx
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       backend:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
     networks:
       - clouddrop_default
