@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
@@ -8,9 +9,22 @@ import {
 } from "../utils/auth.utils.js";
 import { ApiError } from "../utils/api-error.js";
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
-});
+const databaseUrl = new URL(process.env.DATABASE_URL!);
+databaseUrl.searchParams.delete("sslmode");
+
+const poolConfig = {
+  connectionString: databaseUrl.toString(),
+  ...(process.env.NODE_ENV === "production"
+    ? {
+        ssl: {
+          ca: readFileSync("/etc/ssl/certs/rds-eu-west-1-bundle.pem", "utf8"),
+          rejectUnauthorized: true,
+        },
+      }
+    : {}),
+};
+
+const adapter = new PrismaPg(poolConfig);
 
 const prisma = new PrismaClient({ adapter });
 
