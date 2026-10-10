@@ -18,7 +18,7 @@ Scope: prove the mounted `/api/v1` contract. Do not rebuild frontend or AWS work
 | GET | `/api/v1/files/:id/download` | JWT, owner only, presigned URL |
 | DELETE | `/api/v1/files/:id` | JWT, owner only |
 | POST | `/api/v1/files/:id/share` | JWT, owner only, body `{ ttlHours? }` |
-| GET | `/api/v1/categories` | JWT |
+| GET | `/api/v1/categories` | public catalog, no JWT |
 | GET | `/api/v1/dashboard/stats` | JWT, scoped to caller |
 
 `backend/src/routes/file.routes.ts` (GET `/upload`, GET `/:id/share`) is **not** mounted. Do not test it as the live API.
@@ -32,6 +32,7 @@ Token is at `data.token`.
 `backend/tests/access-control.test.ts` covers:
 
 - every protected route returns 401 with no token and with a bad token
+- `GET /api/v1/categories` stays public and returns the catalog with no token and with a bad token
 - a second user cannot read, download, delete, or share an id they do not own (404, no URL leaked)
 - upload without a file returns 400
 - dashboard stats require auth and return the expected shape
