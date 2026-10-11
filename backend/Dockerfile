@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
+COPY certs/eu-west-1-bundle.pem /etc/ssl/certs/rds-eu-west-1-bundle.pem
+
 RUN npm ci
 
 COPY prisma ./prisma
