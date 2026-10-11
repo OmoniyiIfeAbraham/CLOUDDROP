@@ -56,7 +56,7 @@ echo "Nginx container is running."
 echo
 echo "Checking public health endpoint..."
 
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || true)
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/health || true)
 
 if [ "$HTTP_STATUS" != "200" ]; then
   echo "ERROR: Health endpoint returned HTTP ${HTTP_STATUS:-unknown}."
