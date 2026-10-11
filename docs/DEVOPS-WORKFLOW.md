@@ -96,6 +96,7 @@ The production stack uses:
 - Docker
 - Docker Compose
 - CloudDrop Backend
+- CloudDrop Frontend
 - Nginx
 - PostgreSQL / Amazon RDS
 - Amazon S3
@@ -108,14 +109,13 @@ The deployment script is:
 
 The deployment process:
 
-1. Selects the backend Docker image.
-2. Pulls the selected image from GHCR.
-3. Starts or updates the backend container.
-4. Starts Nginx when required.
-5. Waits for the backend health check.
-6. Confirms the backend becomes healthy.
-7. Confirms Nginx is running.
-8. Reports deployment success.
+1. Selects the backend and frontend Docker images.
+2. Pulls both images from GHCR before changing any container.
+3. Starts or updates the backend and frontend containers.
+4. Waits for the backend and frontend health checks.
+5. Tests the Nginx config and restarts Nginx.
+6. Confirms Nginx is running.
+7. Reports deployment success.
 
 ---
 
@@ -158,10 +158,12 @@ Docker Compose
       |
       +----> Backend
       |
+      +----> Frontend
+      |
       +----> Nginx
 ```
 
-The deployment workflow uses the selected Docker image tag when starting the deployment.
+The deployment workflow takes a backend image tag and a frontend image tag (both default to `latest`) when starting the deployment.
 
 The AWS IAM role ARN is stored in GitHub repository secrets and is not hardcoded into the workflow.
 
@@ -180,6 +182,7 @@ Verification checks:
 - Backend container is running.
 - Backend health check is healthy.
 - Running backend image is identified.
+- Frontend health check is healthy.
 - Nginx container is running.
 - Public `/health` endpoint returns HTTP 200.
 
