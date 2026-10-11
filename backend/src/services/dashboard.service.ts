@@ -3,17 +3,22 @@ import { readFileSync } from "node:fs";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const databaseUrl = new URL(process.env.DATABASE_URL!);
-databaseUrl.searchParams.delete("sslmode");
+const databaseUrl = process.env.DATABASE_URL
+  ? new URL(process.env.DATABASE_URL)
+  : null;
+
+databaseUrl?.searchParams.delete("sslmode");
 
 const poolConfig = {
-  connectionString: databaseUrl.toString(),
+  ...(databaseUrl
+    ? { connectionString: databaseUrl.toString() }
+    : {}),
   ...(process.env.NODE_ENV === "production"
     ? {
         ssl: {
           ca: readFileSync(
             "/etc/ssl/certs/rds-eu-west-1-bundle.pem",
-            "utf8"
+            "utf8",
           ),
           rejectUnauthorized: true,
         },
