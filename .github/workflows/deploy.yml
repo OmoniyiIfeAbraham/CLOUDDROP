@@ -7,6 +7,10 @@ on:
         description: "Docker image tag to deploy"
         required: true
         default: "latest"
+      frontend_image_tag:
+        description: "Frontend Docker image tag to deploy"
+        required: true
+        default: "latest"
 
 permissions:
   id-token: write
@@ -27,6 +31,7 @@ jobs:
       - name: Deploy to EC2 through SSM
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
+          FRONTEND_IMAGE_TAG: ${{ inputs.frontend_image_tag }}
           INSTANCE_ID: i-057c4c651255b57e7
           AWS_REGION: eu-west-1
         run: |
@@ -38,10 +43,12 @@ jobs:
             --comment "CloudDrop deployment from GitHub Actions" \
             --parameters "$(jq -n \
               --arg tag "$IMAGE_TAG" \
+              --arg frontend_tag "$FRONTEND_IMAGE_TAG" \
               '{commands: [
                 "set -e",
                 "cd /opt/clouddrop",
                 ("export BACKEND_IMAGE=ghcr.io/omoniyiifeabraham/clouddrop-backend:" + $tag),
+                ("export FRONTEND_IMAGE=ghcr.io/omoniyiifeabraham/clouddrop-frontend:" + $frontend_tag),
                 "./scripts/deploy.sh",
                 "./scripts/verify-deployment.sh"
               ]}')" \

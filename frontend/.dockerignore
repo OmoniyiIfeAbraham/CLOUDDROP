@@ -1,0 +1,9 @@
+# Keep local installs, build output and env overrides out of the image, as in CI.
+node_modules
+dist
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
+.env.local
+.env.*.local

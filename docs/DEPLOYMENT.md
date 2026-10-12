@@ -6,9 +6,10 @@ CloudDrop uses:
 
 GitHub → GitHub Actions → GHCR → EC2 → Docker Compose → Health Check
 
-The backend Docker image is published to:
+The Docker images are published to:
 
 ghcr.io/omoniyiifeabraham/clouddrop-backend
+ghcr.io/omoniyiifeabraham/clouddrop-frontend
 
 Images are tagged with both:
 
@@ -74,11 +75,12 @@ From the CloudDrop application directory:
 
 The deployment script:
 
-1. Pulls the latest backend image.
-2. Starts or restarts the backend.
-3. Waits for the backend health check.
-4. Reports success when the backend is healthy.
-5. Shows backend logs if deployment fails.
+1. Pulls the backend and frontend images (BACKEND_IMAGE and FRONTEND_IMAGE, latest by default). A failed pull stops the deployment before any container changes.
+2. Starts or restarts the backend and frontend.
+3. Waits for the backend and frontend health checks.
+4. Tests the Nginx config, then restarts Nginx so it picks up config changes and the new containers.
+5. Reports success when everything is healthy.
+6. Shows the failing container's logs if deployment fails.
 
 ## 6. Deployment Verification
 
@@ -90,6 +92,7 @@ The verification script checks:
 
 - Backend container status
 - Backend health status
+- Frontend health status
 - Nginx container status
 - Public /health endpoint
 

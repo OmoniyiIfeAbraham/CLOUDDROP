@@ -42,6 +42,22 @@ fi
 echo "Backend image: $BACKEND_IMAGE"
 
 echo
+echo "Checking frontend container..."
+
+FRONTEND_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' clouddrop-frontend 2>/dev/null || true)
+
+if [ "$FRONTEND_HEALTH" != "healthy" ]; then
+  echo "ERROR: Frontend health check failed."
+  echo "Current status: ${FRONTEND_HEALTH:-unknown}"
+  exit 1
+fi
+
+FRONTEND_IMAGE=$(docker inspect --format='{{.Config.Image}}' clouddrop-frontend 2>/dev/null || true)
+
+echo "Frontend is healthy."
+echo "Frontend image: ${FRONTEND_IMAGE:-unknown}"
+
+echo
 echo "Checking Nginx container..."
 
 NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' clouddrop-nginx 2>/dev/null || true)

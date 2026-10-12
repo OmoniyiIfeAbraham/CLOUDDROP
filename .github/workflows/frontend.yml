@@ -86,7 +86,9 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: ghcr.io/omoniyiifeabraham/clouddrop-frontend:${{ github.sha }}
+          tags: |
+            ghcr.io/omoniyiifeabraham/clouddrop-frontend:${{ github.sha }}
+            ghcr.io/omoniyiifeabraham/clouddrop-frontend:latest
           build-args: |
             VITE_API_BASE_URL=/api/v1
             VITE_USE_MOCK_API=false
