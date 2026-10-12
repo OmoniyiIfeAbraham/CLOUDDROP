@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, ExternalLink, Link2, Trash2 } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Link2, Trash2 } from "lucide-react";
 import { Dialog } from "../../../components/ui/Dialog";
 import { useToast } from "../../../components/ui/toast-context";
-import { formatDateTime, formatDuration } from "../../../lib/format";
+import { formatBytes, formatDateTime, formatDuration } from "../../../lib/format";
 import { fileMessage } from "../../../lib/messages";
 import { useFilesRepository } from "../api/files-context";
 import type { FileRecord, ShareResult } from "../model/file.types";
+import { canSaveDirectly, requireHttpsUrl } from "../lib/file-links";
 
 const SHARE_DURATIONS = [
   { hours: 1, label: "1 hour" },
@@ -16,22 +17,6 @@ const SHARE_DURATIONS = [
 ] as const;
 const DEFAULT_SHARE_HOURS = 24;
 
-const requireHttpsUrl = (value: string): string => {
-  const url = new URL(value);
-  if (url.protocol !== "https:") throw new Error("Invalid file link");
-  return url.toString();
-};
-
-const openWithLink = (url: string) => {
-  const link = document.createElement("a");
-  link.href = url;
-  link.rel = "noopener noreferrer";
-  link.target = "_blank";
-  document.body.append(link);
-  link.click();
-  link.remove();
-};
-
 export const useFileActions = () => {
   const repository = useFilesRepository();
   const queryClient = useQueryClient();
@@ -39,6 +24,15 @@ export const useFileActions = () => {
   const location = useLocation();
   const { notify } = useToast();
   const [busyFileId, setBusyFileId] = useState<string | null>(null);
+  const [downloadTarget, setDownloadTarget] = useState<FileRecord | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [downloadExpiresAt, setDownloadExpiresAt] = useState<number | null>(null);
+  const downloadRequestId = useRef(0);
+  const activeDownload = useRef(false);
+  const activeDelete = useRef(false);
+  const activeShare = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<FileRecord | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [shareTarget, setShareTarget] = useState<FileRecord | null>(null);
@@ -50,6 +44,20 @@ export const useFileActions = () => {
   const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
   const shareRequestId = useRef(0);
 
+  useEffect(() => () => {
+    downloadRequestId.current += 1;
+    shareRequestId.current += 1;
+  }, []);
+
+  useEffect(() => {
+    if (!downloadUrl || !downloadExpiresAt) return;
+    const timer = window.setTimeout(() => {
+      setDownloadUrl("");
+      setDownloadError("This download link has expired. Try again for a new link.");
+    }, Math.max(0, downloadExpiresAt - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [downloadUrl, downloadExpiresAt]);
+
   useEffect(() => {
     if (!shareResult || !shareExpiresAt) return;
     const timer = window.setTimeout(() => {
@@ -60,26 +68,44 @@ export const useFileActions = () => {
   }, [shareResult, shareExpiresAt]);
 
   const download = async (file: FileRecord) => {
-    // Open the tab while the click is still being handled: Safari blocks tabs opened after an await.
-    const tab = window.open("", "_blank");
-    if (tab) tab.opener = null;
+    if (activeDownload.current || activeDelete.current) return;
+    activeDownload.current = true;
+    const requestId = ++downloadRequestId.current;
+    setDownloadTarget(file);
+    setDownloadUrl("");
+    setDownloadError("");
+    setDownloadExpiresAt(null);
+    setDownloadLoading(true);
     setBusyFileId(file.id);
     try {
       const result = await repository.getDownload(file.id);
+      if (requestId !== downloadRequestId.current) return;
       const url = requireHttpsUrl(result.downloadUrl);
-      if (tab && !tab.closed) tab.location.href = url;
-      else openWithLink(url);
-      notify(`Download started for ${file.originalName}.`);
+      setDownloadUrl(url);
+      setDownloadExpiresAt(Date.now() + result.expiresIn * 1000);
     } catch (error) {
-      tab?.close();
-      notify(fileMessage(error, "The download link could not be opened."), "error");
+      if (requestId === downloadRequestId.current) setDownloadError(fileMessage(error, "The download link could not be created. Please try again."));
     } finally {
-      setBusyFileId(null);
+      if (requestId === downloadRequestId.current) {
+        activeDownload.current = false;
+        setDownloadLoading(false);
+        setBusyFileId(null);
+      }
     }
+  };
+
+  const closeDownload = () => {
+    downloadRequestId.current += 1;
+    activeDownload.current = false;
+    setDownloadTarget(null);
+    setDownloadUrl("");
+    setDownloadLoading(false);
+    setBusyFileId(null);
   };
 
   const share = (file: FileRecord) => {
     shareRequestId.current += 1;
+    activeShare.current = false;
     setShareTarget(file);
     setShareResult(null);
     setShareError("");
@@ -90,7 +116,8 @@ export const useFileActions = () => {
   };
 
   const createShare = async () => {
-    if (!shareTarget) return;
+    if (!shareTarget || activeShare.current) return;
+    activeShare.current = true;
     const requestId = ++shareRequestId.current;
     setShareResult(null);
     setShareError("");
@@ -109,7 +136,10 @@ export const useFileActions = () => {
         setShareError(fileMessage(error, "The share link could not be created."));
       }
     } finally {
-      if (requestId === shareRequestId.current) setShareLoading(false);
+      if (requestId === shareRequestId.current) {
+        activeShare.current = false;
+        setShareLoading(false);
+      }
     }
   };
 
@@ -135,7 +165,8 @@ export const useFileActions = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || activeDelete.current) return;
+    activeDelete.current = true;
     const file = deleteTarget;
     setDeleteError("");
     setBusyFileId(file.id);
@@ -149,13 +180,35 @@ export const useFileActions = () => {
       const message = fileMessage(error, "The file could not be deleted.");
       setDeleteError(message);
     } finally {
+      activeDelete.current = false;
       setBusyFileId(null);
     }
   };
 
   const dialogs = (
     <>
-      <Dialog title="Share file" open={!!shareTarget} onClose={() => { shareRequestId.current += 1; setShareTarget(null); setShareResult(null); }} >
+      <Dialog title="Download file" open={!!downloadTarget} onClose={closeDownload}>
+        <div className="dialog__body">
+          <p className="dialog__intro"><strong>{downloadTarget?.originalName}</strong>{downloadTarget && <> <span aria-hidden="true">·</span> {formatBytes(downloadTarget.size)}</>}</p>
+          {downloadLoading && <div className="inline-progress" role="status"><span className="spinner" aria-hidden="true" /> Preparing your download...</div>}
+          {downloadError && <div className="inline-alert" role="alert">{downloadError}</div>}
+          {downloadUrl && <p className="dialog__intro">{canSaveDirectly(downloadUrl) ? "Your file is ready. Choose where to save it when your browser asks." : "Open the file, then use your browser’s save or download option to save it to your device."}</p>}
+          <div className="dialog__actions">
+            <button className="button button--secondary" type="button" onClick={closeDownload}>{downloadLoading ? "Cancel" : "Close"}</button>
+            {downloadError && !downloadLoading && downloadTarget && <button className="button button--primary" type="button" onClick={() => void download(downloadTarget)}>Try again</button>}
+            {downloadUrl && <a className="button button--primary" href={downloadUrl} target={canSaveDirectly(downloadUrl) ? "_self" : "_blank"} rel="noopener noreferrer" download={downloadTarget?.originalName} onClick={(event) => {
+              if (downloadExpiresAt && Date.now() >= downloadExpiresAt) {
+                event.preventDefault();
+                setDownloadUrl("");
+                setDownloadError("This download link has expired. Try again for a new link.");
+              } else if (canSaveDirectly(downloadUrl)) {
+                notify(`Download started for ${downloadTarget?.originalName}.`);
+              }
+            }}><Download size={16} /> {canSaveDirectly(downloadUrl) ? "Save file" : "Open file"}</a>}
+          </div>
+        </div>
+      </Dialog>
+      <Dialog title="Share file" open={!!shareTarget} onClose={() => { shareRequestId.current += 1; activeShare.current = false; setShareTarget(null); setShareResult(null); }} >
         <div className="dialog__body">
           <p className="dialog__intro">Create a temporary link for <strong>{shareTarget?.originalName}</strong>. Anyone with the link can download the file until it expires.</p>
           {!shareResult && (
@@ -187,7 +240,7 @@ export const useFileActions = () => {
           )}
         </div>
       </Dialog>
-      <Dialog title="Delete file?" open={!!deleteTarget} onClose={() => { if (!busyFileId) setDeleteTarget(null); }}>
+      <Dialog title="Delete file?" open={!!deleteTarget} closeDisabled={!!busyFileId} onClose={() => { if (!busyFileId) setDeleteTarget(null); }}>
         <div className="dialog__body">
           <p className="dialog__intro">Delete <strong>{deleteTarget?.originalName}</strong>? This removes the stored file and cannot be undone.</p>
           {deleteError && <div className="inline-alert" role="alert">{deleteError}</div>}

@@ -25,7 +25,7 @@ const Protected = () => {
   if (status === "restore-error") return <SessionRecovery />;
 
   if (status === "anonymous") {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname + location.search + location.hash }} replace />;
   }
 
   return <Outlet />;

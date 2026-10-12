@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Cloud, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -19,6 +19,7 @@ const authSchema = z.object({
 type FormValues = z.infer<typeof authSchema>;
 
 export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
+  const fieldId = useId();
   const [showPassword, setShowPassword] = useState(false);
   const [requestError, setRequestError] = useState("");
   const { login, register } = useAuth();
@@ -27,7 +28,11 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   const isRegister = mode === "register";
   usePageTitle(isRegister ? "Create account" : "Sign in");
   const { register: bind, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
-    resolver: zodResolver(authSchema),
+    resolver: zodResolver(authSchema.superRefine((values, context) => {
+      if (!isRegister) return;
+      if (!values.firstName) context.addIssue({ code: "custom", path: ["firstName"], message: "Enter your first name" });
+      if (!values.lastName) context.addIssue({ code: "custom", path: ["lastName"], message: "Enter your last name" });
+    })),
     defaultValues: { firstName: "", lastName: "", email: "", password: "" },
   });
 
@@ -35,11 +40,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
     setRequestError("");
     try {
       if (isRegister) {
-        if (!values.firstName?.trim() || !values.lastName?.trim()) {
-          setRequestError("Enter your first and last name.");
-          return;
-        }
-        await register({ ...values, firstName: values.firstName.trim(), lastName: values.lastName.trim() });
+        await register({ ...values, firstName: (values.firstName ?? "").trim(), lastName: (values.lastName ?? "").trim() });
       } else {
         await login({ email: values.email, password: values.password });
       }
@@ -61,15 +62,15 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
           <div className="auth-kicker"><ShieldCheck size={17} /> Secure workspace</div>
           <h1>{isRegister ? "Create your account" : "Welcome back"}</h1>
           <p className="auth-subtitle">{isRegister ? "Your files, organized and within reach." : "Sign in to get back to your files."}</p>
-          <form className="auth-form" onSubmit={submit} noValidate>
+          <form className="auth-form" onSubmit={submit} noValidate aria-busy={isSubmitting}>
             {isRegister && (
               <div className="form-grid">
-                <label className="field"><span>First name</span><input autoComplete="given-name" {...bind("firstName")} aria-invalid={!!errors.firstName} />{errors.firstName && <small role="alert">{errors.firstName.message}</small>}</label>
-                <label className="field"><span>Last name</span><input autoComplete="family-name" {...bind("lastName")} aria-invalid={!!errors.lastName} />{errors.lastName && <small role="alert">{errors.lastName.message}</small>}</label>
+                <label className="field"><span id={`${fieldId}-first-label`}>First name</span><input autoComplete="given-name" {...bind("firstName")} aria-labelledby={`${fieldId}-first-label`} aria-invalid={!!errors.firstName} aria-describedby={errors.firstName ? `${fieldId}-first-error` : undefined} />{errors.firstName && <small id={`${fieldId}-first-error`} role="alert">{errors.firstName.message}</small>}</label>
+                <label className="field"><span id={`${fieldId}-last-label`}>Last name</span><input autoComplete="family-name" {...bind("lastName")} aria-labelledby={`${fieldId}-last-label`} aria-invalid={!!errors.lastName} aria-describedby={errors.lastName ? `${fieldId}-last-error` : undefined} />{errors.lastName && <small id={`${fieldId}-last-error`} role="alert">{errors.lastName.message}</small>}</label>
               </div>
             )}
-            <label className="field"><span>Email address</span><input type="email" autoComplete="email" placeholder="you@example.com" {...bind("email")} aria-invalid={!!errors.email} />{errors.email && <small role="alert">{errors.email.message}</small>}</label>
-            <label className="field"><span>Password</span><span className={`password-field ${errors.password ? "password-field--invalid" : ""}`}><input type={showPassword ? "text" : "password"} autoComplete={isRegister ? "new-password" : "current-password"} placeholder={isRegister ? "At least 8 characters" : "Enter your password"} {...bind("password")} aria-invalid={!!errors.password} /><button className="icon-button" type="button" title={showPassword ? "Hide password" : "Show password"} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span>{errors.password && <small role="alert">{errors.password.message}</small>}</label>
+            <label className="field"><span id={`${fieldId}-email-label`}>Email address</span><input type="email" autoComplete="email" placeholder="you@example.com" {...bind("email")} aria-labelledby={`${fieldId}-email-label`} aria-invalid={!!errors.email} aria-describedby={errors.email ? `${fieldId}-email-error` : undefined} />{errors.email && <small id={`${fieldId}-email-error`} role="alert">{errors.email.message}</small>}</label>
+            <label className="field"><span id={`${fieldId}-password-label`}>Password</span><span className={`password-field ${errors.password ? "password-field--invalid" : ""}`}><input type={showPassword ? "text" : "password"} autoComplete={isRegister ? "new-password" : "current-password"} placeholder={isRegister ? "At least 8 characters" : "Enter your password"} {...bind("password")} aria-labelledby={`${fieldId}-password-label`} aria-invalid={!!errors.password} aria-describedby={errors.password ? `${fieldId}-password-error` : undefined} /><button className="icon-button" type="button" title={showPassword ? "Hide password" : "Show password"} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span>{errors.password && <small id={`${fieldId}-password-error`} role="alert">{errors.password.message}</small>}</label>
             {requestError && <div className="inline-alert" role="alert">{requestError}</div>}
             <button className="button button--primary auth-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "Please wait..." : isRegister ? "Create account" : "Sign in"}</button>
           </form>

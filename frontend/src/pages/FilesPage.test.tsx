@@ -88,11 +88,11 @@ describe("file library states", () => {
     expect(screen.queryByRole("link", { name: "report-11.pdf" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(screen.getByText("Page 2 of 3")).toBeVisible();
     expect(await screen.findByRole("link", { name: "report-11.pdf" })).toBeVisible();
+    expect(screen.getByText("Page 2 of 3")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(screen.getByText("Page 3 of 3")).toBeVisible();
     expect(await screen.findByRole("link", { name: "report-30.pdf" })).toBeVisible();
+    expect(screen.getByText("Page 3 of 3")).toBeVisible();
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   });
 
@@ -107,6 +107,24 @@ describe("file library states", () => {
     expect(await screen.findByRole("link", { name: "report-1.pdf" })).toBeVisible();
     expect(screen.getByText("10 files")).toBeVisible();
     expect(screen.queryByText(/Page \d of/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the current rows visible and disables paging while the next page loads", async () => {
+    const base = createMockFilesRepository({ files: manyFileFixtures });
+    let finishPage!: (page: FilePage) => void;
+    const pending = new Promise<FilePage>((resolve) => { finishPage = resolve; });
+    const listFiles = vi.fn((query?: FileListQuery) => query?.page === 2 ? pending : base.listFiles(query));
+    renderFiles({ ...base, listFiles });
+    expect(await screen.findByRole("link", { name: "report-1.pdf" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Loading page 2...")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "report-1.pdf" })).toBeVisible();
+    await act(async () => finishPage(await base.listFiles({ page: 2, limit: 10 })));
+    expect(await screen.findByRole("link", { name: "report-11.pdf" })).toBeVisible();
+    expect(screen.getByText("Page 2 of 3")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
   });
 
   it("never shows results from an earlier rapid search", async () => {

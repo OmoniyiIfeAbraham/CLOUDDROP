@@ -51,11 +51,25 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run end-to-end tests
         run: npm run test:e2e
+
+      - name: Verify download UX in Chromium and WebKit
+        run: npm run test:downloads
+
+      - name: Save browser screenshots and failure traces
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-browser-results
+          path: |
+            frontend/test-results/
+            frontend/test-results-downloads/
+          retention-days: 7
+          if-no-files-found: ignore
 
   publish:
     needs: verify

@@ -83,6 +83,7 @@ test("workspace and file actions meet automated accessibility checks", async ({ 
 test("keyboard navigation and dialog focus remain usable", async ({ page, isMobile }) => {
   await signIn(page);
   await page.goto("/files");
+  await expect(page.getByRole("link", { name: "capstone-proposal.pdf" })).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Enter");

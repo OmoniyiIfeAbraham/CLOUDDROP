@@ -56,7 +56,7 @@ export const FilesPage = () => {
           <label className="search-field"><Search size={19} /><span className="sr-only">Search files</span><input type="search" placeholder="Search by file name" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />{search && <button type="button" className="icon-button" aria-label="Clear search" title="Clear search" onClick={() => { setSearch(""); setDebouncedSearch(""); setPage(1); }}><X size={16} /></button>}</label>
           <label className="filter-field"><SlidersHorizontal size={18} /><span className="sr-only">Category</span><select value={category} onChange={(event) => { setCategory(event.target.value as Category | "All"); setPage(1); }}><option value="All">All categories</option>{FILE_CATEGORIES.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
         </div>
-        <div className="library-summary"><span>{isSearchSettling ? "Searching..." : isPending ? "Loading files..." : isError ? "File count unavailable" : `${total} ${total === 1 ? "file" : "files"}`}{isFetching && !showLoading && !isError && <span className="refresh-label"> Updating...</span>}</span><span>Sorted by newest</span></div>
+        <div className="library-summary"><span role="status" aria-live="polite" aria-atomic="true">{isSearchSettling ? "Searching..." : isPending ? "Loading files..." : isError ? "File count unavailable" : `${total} ${total === 1 ? "file" : "files"}`}{isFetching && !showLoading && !isError && <span className="refresh-label"> Updating...</span>}</span><span>Sorted by newest</span></div>
         {showLoading ? <LoadingRows /> : isError ? (
           <StatusView kind="error" title="Files unavailable" description={userMessage(error)} onRetry={() => refetch()} />
         ) : total === 0 ? (
@@ -64,7 +64,7 @@ export const FilesPage = () => {
         ) : (
           <>
             <FileTable files={pageFiles} onDownload={actions.download} onShare={actions.share} onDelete={actions.requestDelete} busyFileId={actions.busyFileId} />
-            {totalPages > 1 && <div className="pagination"><span>Page {page} of {totalPages}</span><div><button className="icon-button" title="Previous page" aria-label="Previous page" type="button" disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft size={18} /></button><button className="icon-button" title="Next page" aria-label="Next page" type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={18} /></button></div></div>}
+            {totalPages > 1 && <nav className="pagination" aria-label="File pages" aria-busy={isFetching}><span role="status" aria-live="polite">{isPlaceholderData ? `Loading page ${page}...` : `Page ${page} of ${totalPages}`}</span><div><button className="icon-button" title="Previous page" aria-label="Previous page" type="button" disabled={page === 1 || isFetching} onClick={() => setPage(page - 1)}><ChevronLeft size={18} /></button><button className="icon-button" title="Next page" aria-label="Next page" type="button" disabled={page >= totalPages || isFetching} onClick={() => setPage(page + 1)}><ChevronRight size={18} /></button></div></nav>}
           </>
         )}
       </section>

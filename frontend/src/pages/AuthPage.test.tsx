@@ -29,6 +29,27 @@ afterEach(() => {
 });
 
 describe("sign-in and registration errors", () => {
+  it("associates validation errors with their fields and focuses the first invalid registration field", async () => {
+    const register = vi.fn();
+    renderAuthPage("register", { register });
+    fill("Email address", "ada@example.com");
+    fill("Password", "securepass123", true);
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect(await screen.findByText("Enter your first name")).toBeVisible();
+    expect(screen.getByLabelText("First name")).toHaveAccessibleDescription("Enter your first name");
+    expect(screen.getByLabelText("Last name")).toHaveAccessibleDescription("Enter your last name");
+    expect(screen.getByLabelText("First name")).toHaveFocus();
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it("gives email and password fields their validation descriptions", async () => {
+    renderAuthPage("login", {});
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("Enter a valid email address")).toBeVisible();
+    expect(screen.getByLabelText("Email address")).toHaveAccessibleDescription("Enter a valid email address");
+    expect(screen.getByLabelText("Password", { exact: true })).toHaveAccessibleDescription("Use at least 8 characters");
+  });
+
   it("tells the user the email or password is wrong, not that a session ended", async () => {
     const login = vi.fn(async () => { throw new ApiError({ message: "Invalid email or password", code: "INVALID_CREDENTIALS", status: 401 }); });
     renderAuthPage("login", { login });
