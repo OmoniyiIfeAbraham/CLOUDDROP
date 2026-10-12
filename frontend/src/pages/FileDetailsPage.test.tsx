@@ -57,9 +57,20 @@ describe("file details", () => {
     renderDetails({ ...base, getFile });
 
     expect(await screen.findByText("File unavailable")).toBeVisible();
+    // A server error is not a missing file.
+    expect(screen.getByText("Something went wrong. Please try again.")).toBeVisible();
+    expect(screen.queryByText(/could not be found|no longer available/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("heading", { name: file.originalName })).toBeVisible();
     expect(getFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("says a missing file is no longer available", async () => {
+    const base = createMockFilesRepository();
+    renderDetails({ ...base, getFile: () => Promise.reject(new ApiError({ message: "File not found", code: "NOT_FOUND", status: 404 })) });
+
+    expect(await screen.findByText("File unavailable")).toBeVisible();
+    expect(screen.getByText("That file is no longer available.")).toBeVisible();
   });
 
   it("returns to the library after deleting the open file", async () => {

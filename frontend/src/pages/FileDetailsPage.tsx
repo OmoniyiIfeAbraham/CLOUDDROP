@@ -23,7 +23,7 @@ export const FileDetailsPage = () => {
   return (
     <div className="page-content detail-page">
       <Link to="/files" className="back-link"><ArrowLeft size={17} /> Back to my files</Link>
-      {isPending ? <LoadingRows count={3} /> : isError || !file ? <StatusView kind="error" title="File unavailable" description={fileMessage(error, "This file could not be found.")} onRetry={() => refetch()} /> : (
+      {isPending ? <LoadingRows count={3} /> : isError || !file ? <StatusView kind="error" title="File unavailable" description={fileMessage(error)} onRetry={() => refetch()} /> : (
         <>
           <div className="detail-heading"><FileGlyph file={file} /><div><span className="eyebrow">FILE DETAILS</span><h1>{file.originalName}</h1><p>{file.category} <span aria-hidden="true">·</span> {formatBytes(file.size)}</p></div></div>
           <div className="detail-actions">
