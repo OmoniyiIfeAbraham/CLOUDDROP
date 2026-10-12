@@ -246,7 +246,11 @@ export const downloadFile = async (
     }
 
     const expiresIn = 600;
-    const downloadUrl = await generateDownloadUrl(file.s3Key, expiresIn);
+    const downloadUrl = await generateDownloadUrl(
+      file.s3Key,
+      expiresIn,
+      file.originalName,
+    );
 
     res.status(200).json({
       success: true,
