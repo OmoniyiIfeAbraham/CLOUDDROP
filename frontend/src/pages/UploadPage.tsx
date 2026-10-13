@@ -31,6 +31,12 @@ export const UploadPage = () => {
 
   const readyCount = queue.filter((item) => item.status === "ready").length;
   const completeCount = queue.filter((item) => item.status === "complete").length;
+  const readyBytes = queue.filter((item) => item.status === "ready").reduce((sum, item) => sum + item.file.size, 0);
+  const errorCount = queue.filter((item) => item.status === "error").length;
+  const allUploaded = queue.length > 0 && completeCount === queue.length;
+  const submitLabel = uploading ? "Uploading..." : readyCount > 0
+    ? `Upload ${readyCount} ${readyCount === 1 ? "file" : "files"}`
+    : allUploaded ? "All files uploaded" : queue.length ? "No files ready" : "Choose files first";
 
   return (
     <div className="page-content upload-page">
@@ -70,10 +76,11 @@ export const UploadPage = () => {
             </section>
           )}
         </div>
-        <aside className="upload-settings" aria-label="Upload summary">
+        <aside className={`upload-settings${uploading || readyCount ? "" : " upload-settings--idle"}`} aria-label="Upload summary">
           <h2>Upload summary</h2>
           <p>Each file gets a category from its type. Change any of them in the queue before uploading.</p>
-          <button type="button" className="button button--primary upload-settings__submit" onClick={() => void uploadAll()} disabled={uploading || !readyCount}><UploadCloud size={18} /> {uploading ? "Uploading..." : `Upload ${readyCount} ${readyCount === 1 ? "file" : "files"}`}</button>
+          <div className="upload-summary-counts" role="status" aria-live="polite" aria-atomic="true">{readyCount} ready ({formatBytes(readyBytes)}){completeCount > 0 && <> <span aria-hidden="true">·</span> {completeCount} uploaded</>}{errorCount > 0 && <> <span aria-hidden="true">·</span> {errorCount} {errorCount === 1 ? "needs" : "need"} attention</>}</div>
+          <button type="button" className="button button--primary upload-settings__submit" onClick={() => void uploadAll()} disabled={uploading || !readyCount}>{allUploaded ? <CheckCircle2 size={18} /> : <UploadCloud size={18} />} {submitLabel}</button>
           {uploading && <button type="button" className="button button--secondary upload-settings__cancel" onClick={cancel}><CircleStop size={17} /> Cancel upload</button>}
           {uploading && <p className="upload-settings__hint">Uploads continue if you open another page. Closing this tab stops them.</p>}
           {completeCount > 0 && <Link className="text-link" to="/files">View uploaded files</Link>}

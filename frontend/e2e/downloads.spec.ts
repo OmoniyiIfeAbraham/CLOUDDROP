@@ -1,0 +1,165 @@
+import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createServer, type Server } from "node:https";
+import type { IncomingHttpHeaders } from "node:http";
+import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
+
+const filename = "Résumé notes (final).txt";
+const content = "CloudDrop browser download verification.\n";
+const file = {
+  id: "download-file-1", originalName: filename, mimeType: "text/plain",
+  size: Buffer.byteLength(content), category: "Documents",
+  createdAt: "2026-10-12T10:00:00.000Z", updatedAt: "2026-10-12T10:00:00.000Z",
+};
+const encodedName = encodeURIComponent(filename).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+const disposition = `attachment; filename="Resume notes (final).txt"; filename*=UTF-8''${encodedName}`;
+let storage: Server;
+let storageOrigin: string;
+let certificateDirectory: string;
+const storageRequests: { url: string; headers: IncomingHttpHeaders }[] = [];
+
+test.beforeAll(async () => {
+  // A real response is needed: WebKit does not treat route.fulfill attachment
+  // responses as downloads (Playwright issue #22691). Keys are ephemeral and
+  // generated locally; no credentials or certificates are committed.
+  certificateDirectory = mkdtempSync(join(tmpdir(), "clouddrop-download-test-"));
+  const key = join(certificateDirectory, "key.pem");
+  const cert = join(certificateDirectory, "cert.pem");
+  execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-keyout", key, "-out", cert, "-subj", "/CN=127.0.0.1"], { stdio: "ignore" });
+  storage = createServer({ key: readFileSync(key), cert: readFileSync(cert) }, (request, response) => {
+    const url = new URL(request.url ?? "/", storageOrigin);
+    storageRequests.push({ url: url.toString(), headers: request.headers });
+    response.setHeader("Content-Type", url.searchParams.get("response-content-type") ?? "text/plain");
+    const attachment = url.searchParams.get("response-content-disposition");
+    if (attachment) response.setHeader("Content-Disposition", attachment);
+    response.end(content);
+  });
+  await new Promise<void>((resolve) => storage.listen(0, "127.0.0.1", resolve));
+  storageOrigin = `https://127.0.0.1:${(storage.address() as AddressInfo).port}`;
+});
+
+test.afterAll(async () => {
+  if (storage) await new Promise<void>((resolve, reject) => storage.close((error) => error ? reject(error) : resolve()));
+  if (certificateDirectory) rmSync(certificateDirectory, { recursive: true, force: true });
+});
+
+const installFixtures = async (page: Page, options: {
+  attachment?: boolean; failFirst?: boolean; gate?: Promise<void>; expiresIn?: number;
+} = {}) => {
+  let requested = 0;
+  storageRequests.length = 0;
+  await page.addInitScript(() => {
+    if (location.origin === "http://127.0.0.1:4176") sessionStorage.setItem("clouddrop.access-token", "browser-fixture-session");
+  });
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    let data: unknown;
+    if (path.endsWith("/auth/me")) {
+      data = { user: { id: "fixture-user", firstName: "Ada", lastName: "Lovelace", email: "fixture@example.test" } };
+    } else if (path.endsWith("/download")) {
+      requested += 1;
+      await options.gate;
+      if (options.failFirst && requested === 1) {
+        await route.fulfill({ status: 500, json: { success: false, message: "Unavailable", error: { code: "DOWNLOAD_FAILED" } } });
+        return;
+      }
+      const url = new URL("/object.txt", storageOrigin);
+      url.searchParams.set("X-Amz-Signature", `fixture-${requested}`);
+      if (options.attachment) {
+        url.searchParams.set("response-content-disposition", disposition);
+        url.searchParams.set("response-content-type", "application/octet-stream");
+      }
+      data = { file, downloadUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
+    } else if (path.endsWith(`/files/${file.id}`)) {
+      data = { file };
+    } else if (path.endsWith("/files")) {
+      data = { files: [file], pagination: { page: 1, limit: 10, total: 1, totalPages: 1 } };
+    } else {
+      throw new Error(`Unexpected API request: ${path}`);
+    }
+    await route.fulfill({ json: { success: true, message: "Fixture request succeeded", data } });
+  });
+  await page.goto("/files");
+  await expect(page.getByRole("link", { name: filename, exact: true })).toBeVisible();
+  return { requests: () => requested, storageRequests };
+};
+
+test("a signed attachment saves the original filename and bytes without CORS", async ({ page }, testInfo) => {
+  const fixtures = await installFixtures(page, { attachment: true });
+  await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
+  const save = page.getByRole("link", { name: "Save file" });
+  await expect(save).toBeVisible();
+  expect(fixtures.storageRequests).toHaveLength(0);
+  await page.screenshot({ path: testInfo.outputPath("download-ready.png"), fullPage: true });
+  const downloadEvent = page.waitForEvent("download");
+  await save.click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe(filename);
+  const saved = testInfo.outputPath(filename);
+  await download.saveAs(saved);
+  expect(await readFile(saved, "utf8")).toBe(content);
+  expect(new URL(download.url()).searchParams.get("X-Amz-Signature")).toBe("fixture-1");
+  expect(fixtures.storageRequests).toHaveLength(1);
+  expect(fixtures.storageRequests[0]!.headers.authorization).toBeUndefined();
+  expect(fixtures.storageRequests[0]!.headers.referer).toBeUndefined();
+  await expect(page).toHaveURL(/\/files$/);
+});
+
+test("current backend links offer an explicit preview and saving fallback", async ({ page }, testInfo) => {
+  const fixtures = await installFixtures(page);
+  await page.setViewportSize({ width: 320, height: 700 });
+  const trigger = page.getByRole("button", { name: `Download ${filename}`, exact: true });
+  await trigger.click();
+  await expect(page.getByRole("link", { name: "Open file" })).toBeVisible();
+  await expect(page.getByText(/use your browser’s save or download option/)).toBeVisible();
+  await expect(page.getByText(/Download started/)).toHaveCount(0);
+  expect(fixtures.storageRequests).toHaveLength(0);
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.map(({ id }) => id)).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("download-fallback-320.png"), fullPage: true });
+  const popupEvent = page.waitForEvent("popup");
+  await page.getByRole("link", { name: "Open file" }).click();
+  const popup = await popupEvent;
+  await expect(popup.locator("body")).toContainText(content.trim());
+  await popup.close();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Download file" })).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("cancelled preparation ignores a late response", async ({ page }, testInfo) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const fixtures = await installFixtures(page, { gate, attachment: true });
+  await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
+  await expect(page.getByText("Preparing your download...")).toBeVisible();
+  await expect.poll(fixtures.requests).toBe(1);
+  await page.screenshot({ path: testInfo.outputPath("download-preparing.png"), fullPage: true });
+  const response = page.waitForResponse((value) => value.url().endsWith("/download"));
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  release();
+  await response;
+  await expect(page.getByRole("dialog", { name: "Download file" })).not.toBeVisible();
+  await expect(page.getByRole("link", { name: "Save file" })).toHaveCount(0);
+  expect(fixtures.storageRequests).toHaveLength(0);
+});
+
+test("failed requests retry and expired links are renewed", async ({ page }, testInfo) => {
+  const fixtures = await installFixtures(page, { failFirst: true, expiresIn: 0.5 });
+  await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("The download link could not be created.");
+  await page.screenshot({ path: testInfo.outputPath("download-error.png"), fullPage: true });
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByRole("link", { name: "Open file" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("This download link has expired.");
+  await expect(page.getByRole("link", { name: "Open file" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByRole("link", { name: "Open file" })).toHaveAttribute("href", /fixture-3/);
+  expect(fixtures.requests()).toBe(3);
+});

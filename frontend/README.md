@@ -32,6 +32,8 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npx playwright install webkit
+npm run test:downloads
 ```
 
 Playwright also needs the host's Chromium system libraries. The browser suite runs against the demo Vite server and checks desktop and mobile flows. The production build is emitted to `frontend/dist/`.
@@ -62,7 +64,15 @@ Each step saves a screenshot under `test-results/`. The test also fetches the do
 E2E_BASE_URL=https://<deployed-host> VITE_USE_MOCK_API=false npm run test:e2e -- e2e/live-flow.spec.ts
 ```
 
-The file-library and full-flow tests also create unique test users. Populated file lists and category filtering need backend test data; the current backend does not offer server-side category filtering or pagination.
+The file-library and full-flow tests also create unique test users. The full-flow test removes its uploaded file during the successful delete step; test accounts remain in the database. The current backend supports server-side category filtering, filename search, pagination, and dashboard statistics.
+
+The download fixture suite starts the app in HTTP API mode and a separate local HTTPS file server, then tests desktop Chromium, mobile Chromium, and mobile WebKit without a backend database or S3. It checks saved bytes/Unicode filenames, the current backend fallback, cancellation, retry, expiry, narrow layout, and accessibility. It requires `openssl` to generate disposable test certificates; certificate checking is relaxed only in this local fixture configuration.
+
+## Download behavior and remaining handoff
+
+Download actions prepare a fresh link in a cancellable dialog. A signed S3 link with attachment disposition and `application/octet-stream` delivery offers **Save file**; other links offer **Open file** with browser saving instructions. The explicit link click preserves the browser's user gesture, including Safari, and no blank tab opens while a link is being prepared. Failed requests stay in the dialog for retry and expired links are removed.
+
+Production's current download service does not sign attachment headers, so direct saving requires the backend change documented in [the download handoff](docs/backend-download-handoff.md). The frontend does not modify signed URLs or fetch S3 bytes through a CORS workaround. The remaining human screen-reader check is described in [the accessibility review](docs/accessibility-review.md).
 
 ## API integration
 

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page, TestInfo } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 const capture = async (page: Page, testInfo: TestInfo, name: string) => {
   const path = testInfo.outputPath(`${name}.png`);
@@ -74,17 +75,33 @@ test("register, sign in, upload, list, download, share, and delete through the l
   });
 
   await test.step("download", async () => {
-    const tab = page.waitForEvent("popup");
     const requested = page.waitForResponse((response) => isApi(response.url(), /\/api\/v1\/files\/[^/]+\/download$/));
     await page.getByRole("button", { name: `Download ${fileName}` }).click();
-    expect((await requested).status()).toBe(200);
-    const downloadTab = await tab;
-    await downloadTab.waitForURL(/^https:\/\//);
-    const stored = await page.request.get(downloadTab.url());
+    const response = await requested;
+    expect(response.status()).toBe(200);
+    const payload = await response.json();
+    const stored = await page.request.get(payload.data.downloadUrl);
     expect(stored.status()).toBe(200);
     expect(await stored.text()).toBe(content);
-    await downloadTab.close();
-    await expect(page.getByText(`Download started for ${fileName}.`)).toBeVisible();
+    await expect(page.getByRole("link", { name: /^(Save file|Open file)$/ })).toBeVisible();
+    const save = page.getByRole("link", { name: "Save file", exact: true });
+    if (await save.count()) {
+      const downloadEvent = page.waitForEvent("download");
+      await save.click();
+      const download = await downloadEvent;
+      expect(download.suggestedFilename()).toBe(fileName);
+      const path = testInfo.outputPath(fileName);
+      await download.saveAs(path);
+      expect(await readFile(path, "utf8")).toBe(content);
+    } else {
+      const popupEvent = page.waitForEvent("popup");
+      await page.getByRole("link", { name: "Open file", exact: true }).click();
+      const popup = await popupEvent;
+      await popup.waitForURL(/^https:\/\//);
+      await expect(popup.locator("body")).toContainText(content);
+      await popup.close();
+    }
+    await page.getByRole("button", { name: "Close dialog" }).click();
     await capture(page, testInfo, "05-downloaded");
   });
 

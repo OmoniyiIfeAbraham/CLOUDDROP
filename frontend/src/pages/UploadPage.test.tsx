@@ -79,7 +79,7 @@ describe("upload queue states", () => {
     expect(queueItem("run.exe")).toHaveTextContent("This file type is not supported.");
     expect(queueItem("huge.pdf")).toHaveTextContent("File exceeds the 25 MB upload limit.");
     expect(screen.queryByRole("combobox", { name: "Category for run.exe" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Upload 0 files" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "No files ready" })).toBeDisabled();
     expect(uploadFile).not.toHaveBeenCalled();
   });
 
@@ -151,7 +151,7 @@ describe("upload queue states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Upload 1 file" }));
     await waitFor(() => expect(queueItem("notes.txt")).toHaveTextContent("Check the file and category, then try again."));
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Upload 0 files" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "No files ready" })).toBeDisabled();
   });
 
   it("explains a proxy size rejection instead of reporting unexpected data", async () => {
@@ -176,7 +176,7 @@ describe("upload queue states", () => {
     await waitFor(() => expect(uploadFile).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(queueItem("first.txt")).toHaveTextContent("Could not connect. Check your connection and try again."));
     expect(queueItem("second.txt")).toHaveTextContent("Uploaded");
-    expect(screen.getByRole("status")).toHaveTextContent("1 file uploaded.");
+    expect(screen.getByText("1 file uploaded.")).toBeVisible();
   });
 
   it("cancels the active upload and leaves the rest of the queue ready", async () => {
@@ -238,7 +238,7 @@ describe("upload queue states", () => {
     rerender("user-2", <UploadPage />);
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
     await waitFor(() => expect(uploadFile.mock.calls[0]?.[3]?.aborted).toBe(true));
-    expect(screen.getByRole("button", { name: "Upload 0 files" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Choose files first" })).toBeDisabled();
     expect(screen.queryByText(/uploaded\./)).not.toBeInTheDocument();
   });
 

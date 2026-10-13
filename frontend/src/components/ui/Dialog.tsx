@@ -8,9 +8,10 @@ interface DialogProps {
   onClose: () => void;
   children: ReactNode;
   size?: "normal" | "wide";
+  closeDisabled?: boolean;
 }
 
-export const Dialog = ({ title, open, onClose, children, size = "normal" }: DialogProps) => {
+export const Dialog = ({ title, open, onClose, children, size = "normal", closeDisabled = false }: DialogProps) => {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -21,10 +22,10 @@ export const Dialog = ({ title, open, onClose, children, size = "normal" }: Dial
   }, [open]);
 
   return (
-    <dialog ref={ref} className={`dialog dialog--${size}`} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }} aria-label={title}>
+    <dialog ref={ref} className={`dialog dialog--${size}`} onClose={() => { if (open) onClose(); }} onCancel={(event) => { event.preventDefault(); if (!closeDisabled) onClose(); }} aria-label={title}>
       <div className="dialog__header">
         <h2>{title}</h2>
-        <button className="icon-button" type="button" onClick={onClose} aria-label="Close dialog" title="Close dialog"><X size={18} /></button>
+        <button className="icon-button" type="button" onClick={onClose} disabled={closeDisabled} aria-label="Close dialog" title="Close dialog"><X size={18} /></button>
       </div>
       {children}
     </dialog>

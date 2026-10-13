@@ -40,7 +40,9 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
   await expect(page.getByRole("heading", { name: "My files" })).toBeVisible();
 
   await page.getByRole("button", { name: "Download capstone-proposal.pdf" }).click();
-  await expect(page.getByText("Download started for capstone-proposal.pdf.")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Download file" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open file" })).toBeVisible();
+  await page.getByRole("button", { name: "Close dialog" }).click();
 
   await page.getByRole("button", { name: "Share capstone-proposal.pdf" }).click();
   await expect(page.getByRole("dialog", { name: "Share file" })).toBeVisible();
@@ -76,6 +78,12 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
   await expect(page.getByRole("combobox", { name: "Category for fresh-notes.txt" })).toHaveValue("Documents");
   await page.getByRole("button", { name: "Upload 1 file" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "fresh-notes.txt" })).toContainText("Uploaded");
+  await expect(page.getByRole("button", { name: "All files uploaded" })).toBeVisible();
+  if (isMobile) {
+    const row = await page.getByRole("listitem").filter({ hasText: "fresh-notes.txt" }).boundingBox();
+    const summary = await page.getByRole("complementary", { name: "Upload summary" }).boundingBox();
+    expect(summary!.y).toBeGreaterThanOrEqual(row!.y + row!.height);
+  }
   await page.screenshot({ path: testInfo.outputPath("upload.png"), fullPage: true });
   await page.getByRole("link", { name: "View uploaded files" }).click();
   await expect(page.getByRole("link", { name: "fresh-notes.txt" })).toBeVisible();
@@ -152,5 +160,7 @@ test("auth forms reject incomplete details", async ({ page }) => {
   await page.getByLabel("Email address").fill("ada@example.com");
   await page.getByLabel("Password", { exact: true }).fill("securepass123");
   await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByRole("alert")).toContainText("Enter your first and last name.");
+  await expect(page.getByLabel("First name")).toHaveAccessibleDescription("Enter your first name");
+  await expect(page.getByLabel("First name")).toBeFocused();
+  await expect(page.getByLabel("Last name")).toHaveAccessibleDescription("Enter your last name");
 });

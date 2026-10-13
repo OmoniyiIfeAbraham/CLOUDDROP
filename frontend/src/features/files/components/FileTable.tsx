@@ -29,6 +29,7 @@ export const FileGlyph = ({ file }: { file: Pick<FileRecord, "category"> }) => {
 export const FileTable = ({ files, onDownload, onShare, onDelete, busyFileId, compact = false }: FileTableProps) => (
   <div className="file-table-scroll">
     <table className={`file-table ${compact ? "file-table--compact" : ""}`}>
+      <caption className="sr-only">{compact ? "Recent files" : "Your files"}</caption>
       <thead>
         <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Size</th><th scope="col">Added</th><th scope="col"><span className="sr-only">Actions</span></th></tr>
       </thead>

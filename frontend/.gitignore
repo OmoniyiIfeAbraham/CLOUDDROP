@@ -3,6 +3,7 @@ dist/
 coverage/
 playwright-report/
 test-results/
+test-results-downloads/
 *.tsbuildinfo
 .env.local
 .env.*.local
