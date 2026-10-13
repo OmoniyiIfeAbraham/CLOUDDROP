@@ -2,8 +2,6 @@ import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, CircleAlert, CircleStop, FileUp, Plus, UploadCloud, X } from "lucide-react";
-import { FILE_CATEGORIES } from "../features/files/model/file.types";
-import type { Category } from "../features/files/model/file.types";
 import { useUploadQueue } from "../features/upload/upload-queue-context";
 import type { QueueItem } from "../features/upload/upload-queue-context";
 import { formatBytes } from "../lib/format";
@@ -15,11 +13,8 @@ const statusText = (item: QueueItem): string => {
   return item.error ?? "Upload failed.";
 };
 
-const canChooseCategory = (item: QueueItem): boolean =>
-  item.status === "ready" || item.status === "uploading" || (item.status === "error" && !!item.retryable);
-
 export const UploadPage = () => {
-  const { queue, uploading, addFiles, setCategory, retry, remove, clear, uploadAll, cancel } = useUploadQueue();
+  const { queue, uploading, addFiles, retry, remove, clear, uploadAll, cancel } = useUploadQueue();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -63,11 +58,9 @@ export const UploadPage = () => {
                       <span>{formatBytes(item.file.size)} <span aria-hidden="true">·</span> <span className="upload-item__status">{statusText(item)}</span></span>
                       {item.status === "uploading" && <progress max="100" value={item.progress} aria-label={`Upload progress for ${item.file.name}`} />}
                     </div>
-                    {canChooseCategory(item) && (
-                      <select className="upload-item__category" aria-label={`Category for ${item.file.name}`} value={item.category} disabled={uploading} onChange={(event) => setCategory(item.id, event.target.value as Category)}>
-                        {FILE_CATEGORIES.map((value) => <option key={value} value={value}>{value}</option>)}
-                      </select>
-                    )}
+                    <span className="upload-item__category" role="note" aria-label={`Category for ${item.file.name}: ${item.category}`}>
+                      {item.category}
+                    </span>
                     {!uploading && item.status === "error" && item.retryable && <button type="button" className="text-button" onClick={() => retry(item.id)}>Retry</button>}
                     {!uploading && <button type="button" className="icon-button" title="Remove from queue" aria-label={`Remove ${item.file.name} from queue`} onClick={() => remove(item.id)}><X size={17} /></button>}
                   </li>
@@ -78,7 +71,7 @@ export const UploadPage = () => {
         </div>
         <aside className={`upload-settings${uploading || readyCount ? "" : " upload-settings--idle"}`} aria-label="Upload summary">
           <h2>Upload summary</h2>
-          <p>Each file gets a category from its type. Change any of them in the queue before uploading.</p>
+          <p>Categories are assigned automatically from each file’s type.</p>
           <div className="upload-summary-counts" role="status" aria-live="polite" aria-atomic="true">{readyCount} ready ({formatBytes(readyBytes)}){completeCount > 0 && <> <span aria-hidden="true">·</span> {completeCount} uploaded</>}{errorCount > 0 && <> <span aria-hidden="true">·</span> {errorCount} {errorCount === 1 ? "needs" : "need"} attention</>}</div>
           <button type="button" className="button button--primary upload-settings__submit" onClick={() => void uploadAll()} disabled={uploading || !readyCount}>{allUploaded ? <CheckCircle2 size={18} /> : <UploadCloud size={18} />} {submitLabel}</button>
           {uploading && <button type="button" className="button button--secondary upload-settings__cancel" onClick={cancel}><CircleStop size={17} /> Cancel upload</button>}

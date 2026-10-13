@@ -11,7 +11,7 @@ import { FilesContext } from "../features/files/api/files-context";
 import { createMockFilesRepository } from "../features/files/api/files-mock-repository";
 import type { FilesRepository } from "../features/files/api/files-repository";
 import { normalFileFixtures } from "../features/files/api/files.fixtures";
-import type { Category, FileRecord } from "../features/files/model/file.types";
+import type { FileRecord } from "../features/files/model/file.types";
 import { MAX_FILE_SIZE } from "../features/upload/upload-service";
 import { UploadQueueProvider } from "../features/upload/UploadQueueProvider";
 import { UploadPage } from "./UploadPage";
@@ -58,7 +58,7 @@ const deferredUpload = () => {
   return { pending, finish: (file: FileRecord) => finish(file) };
 };
 
-const cancellableUpload = () => vi.fn((_file: File, _category: Category, _onProgress?: (percent: number) => void, signal?: AbortSignal) =>
+const cancellableUpload = () => vi.fn((_file: File, _onProgress?: (percent: number) => void, signal?: AbortSignal) =>
   new Promise<FileRecord>((_resolve, reject) => {
     signal?.addEventListener("abort", () => reject(new ApiError({ message: "Upload was cancelled.", code: "UPLOAD_CANCELLED" })));
   }));
@@ -83,33 +83,33 @@ describe("upload queue states", () => {
     expect(uploadFile).not.toHaveBeenCalled();
   });
 
-  it("suggests a category for each file and uploads the user's choices", async () => {
+  it("shows fixed file-type categories for a mixed queue and keeps them after upload", async () => {
     const uploadFile = vi.fn<FilesRepository["uploadFile"]>(async () => normalFileFixtures[0]!);
     renderUpload({ ...createMockFilesRepository(), uploadFile });
-    selectFiles([
-      new File(["notes"], "notes.txt", { type: "text/plain" }),
+    const files = [
+      new File(["pdf"], "notes.pdf", { type: "application/pdf" }),
       new File(["png"], "photo.png", { type: "image/png" }),
       new File(["mp4"], "clip.mp4", { type: "video/mp4" }),
-    ]);
+      new File(["mp3"], "song.mp3", { type: "audio/mpeg" }),
+      new File(["zip"], "backup.zip", { type: "application/zip" }),
+    ];
+    selectFiles(files);
+    const categories = ["Documents", "Images", "Videos", "Audio", "Archives"];
+    files.forEach((file, index) => {
+      expect(screen.getByLabelText(`Category for ${file.name}: ${categories[index]}`)).toHaveTextContent(categories[index]!);
+    });
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
 
-    expect(screen.getByRole("combobox", { name: "Category for notes.txt" })).toHaveValue("Documents");
-    expect(screen.getByRole("combobox", { name: "Category for photo.png" })).toHaveValue("Images");
-    expect(screen.getByRole("combobox", { name: "Category for clip.mp4" })).toHaveValue("Videos");
-    fireEvent.change(screen.getByRole("combobox", { name: "Category for photo.png" }), { target: { value: "Other" } });
-
-    fireEvent.click(screen.getByRole("button", { name: "Upload 3 files" }));
-    await waitFor(() => expect(queueItem("clip.mp4")).toHaveTextContent("Uploaded to Videos"));
-    expect(uploadFile.mock.calls.map(([file, category]) => [file.name, category])).toEqual([
-      ["notes.txt", "Documents"],
-      ["photo.png", "Other"],
-      ["clip.mp4", "Videos"],
-    ]);
-    expect(queueItem("photo.png")).toHaveTextContent("Uploaded to Other");
+    fireEvent.click(screen.getByRole("button", { name: "Upload 5 files" }));
+    await waitFor(() => expect(queueItem("backup.zip")).toHaveTextContent("Uploaded to Archives"));
+    expect(uploadFile.mock.calls.map(([file]) => file.name)).toEqual(files.map((file) => file.name));
+    files.forEach((file, index) => expect(queueItem(file.name)).toHaveTextContent(`Uploaded to ${categories[index]}`));
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
-  it("shows progress, locks categories, and refreshes files after success", async () => {
+  it("shows progress, keeps categories read-only, and refreshes files after success", async () => {
     const upload = deferredUpload();
-    const uploadFile = vi.fn((_file: File, _category: Category, onProgress?: (percent: number) => void) => {
+    const uploadFile = vi.fn((_file: File, onProgress?: (percent: number) => void) => {
       onProgress?.(40);
       return upload.pending;
     });
@@ -120,8 +120,9 @@ describe("upload queue states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Upload 1 file" }));
     expect(queueItem("notes.txt")).toHaveTextContent("Uploading 40%");
     expect(screen.getByRole("progressbar", { name: "Upload progress for notes.txt" })).toHaveValue(40);
-    expect(screen.getByRole("combobox", { name: "Category for notes.txt" })).toBeDisabled();
-    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "Documents", expect.any(Function), expect.any(AbortSignal));
+    expect(screen.getByLabelText("Category for notes.txt: Documents")).toHaveTextContent("Documents");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), expect.any(Function), expect.any(AbortSignal));
 
     await act(async () => upload.finish(normalFileFixtures[0]!));
     expect(queueItem("notes.txt")).toHaveTextContent("Uploaded");
@@ -149,7 +150,7 @@ describe("upload queue states", () => {
     selectFiles([new File(["notes"], "notes.txt", { type: "text/plain" })]);
 
     fireEvent.click(screen.getByRole("button", { name: "Upload 1 file" }));
-    await waitFor(() => expect(queueItem("notes.txt")).toHaveTextContent("Check the file and category, then try again."));
+    await waitFor(() => expect(queueItem("notes.txt")).toHaveTextContent("This file could not be uploaded. Check it and try again."));
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "No files ready" })).toBeDisabled();
   });
@@ -237,7 +238,7 @@ describe("upload queue states", () => {
 
     rerender("user-2", <UploadPage />);
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
-    await waitFor(() => expect(uploadFile.mock.calls[0]?.[3]?.aborted).toBe(true));
+    await waitFor(() => expect(uploadFile.mock.calls[0]?.[2]?.aborted).toBe(true));
     expect(screen.getByRole("button", { name: "Choose files first" })).toBeDisabled();
     expect(screen.queryByText(/uploaded\./)).not.toBeInTheDocument();
   });

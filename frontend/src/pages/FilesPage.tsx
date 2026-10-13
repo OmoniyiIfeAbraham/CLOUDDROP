@@ -63,7 +63,7 @@ export const FilesPage = () => {
           noFilters ? <StatusView kind="empty" title="Your library is empty" description="Your files will appear here after your first upload." action={<Link className="button button--primary" to="/upload"><UploadCloud size={17} /> Upload a file</Link>} /> : <StatusView kind="empty" title="No matching files" description="Try a different search or category." action={<button type="button" className="button button--secondary" onClick={() => { setSearch(""); setDebouncedSearch(""); setCategory("All"); setPage(1); }}>Clear filters</button>} />
         ) : (
           <>
-            <FileTable files={pageFiles} onDownload={actions.download} onShare={actions.share} onDelete={actions.requestDelete} busyFileId={actions.busyFileId} />
+            <FileTable files={pageFiles} onView={actions.view} onDownload={actions.download} onShare={actions.share} onDelete={actions.requestDelete} busyFileId={actions.busyFileId} />
             {totalPages > 1 && <nav className="pagination" aria-label="File pages" aria-busy={isFetching}><span role="status" aria-live="polite">{isPlaceholderData ? `Loading page ${page}...` : `Page ${page} of ${totalPages}`}</span><div><button className="icon-button" title="Previous page" aria-label="Previous page" type="button" disabled={page === 1 || isFetching} onClick={() => setPage(page - 1)}><ChevronLeft size={18} /></button><button className="icon-button" title="Next page" aria-label="Next page" type="button" disabled={page >= totalPages || isFetching} onClick={() => setPage(page + 1)}><ChevronRight size={18} /></button></div></nav>}
           </>
         )}

@@ -9,6 +9,7 @@ import type {
   FileListQuery,
   FilePage,
   FileRecord,
+  FileDisposition,
   ShareResult,
 } from "../model/file.types";
 import { uploadFileHttp } from "../../upload/upload-service";
@@ -43,8 +44,8 @@ export const createHttpFilesRepository = (
     return parseFilePayload(await client.request<unknown>(filePath(fileId)));
   },
 
-  async getDownload(fileId: string): Promise<DownloadResult> {
-    return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download"));
+  async getDownload(fileId: string, disposition: FileDisposition = "attachment"): Promise<DownloadResult> {
+    return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download", { query: { disposition } }));
   },
 
   async getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult> {
@@ -61,8 +62,8 @@ export const createHttpFilesRepository = (
     });
   },
 
-  uploadFile(file: File, category: Category, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord> {
-    return uploadFileHttp(file, category, onProgress, signal);
+  uploadFile(file: File, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord> {
+    return uploadFileHttp(file, onProgress, signal);
   },
 
   getCategories(): Promise<Category[]> {

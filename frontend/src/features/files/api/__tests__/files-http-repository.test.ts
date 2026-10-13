@@ -114,10 +114,19 @@ describe("HTTP file actions", () => {
     await expect(repository.deleteFile(file.id)).resolves.toBeUndefined();
     expect(calls).toEqual([
       { path: `/api/v1/files/${file.id}`, method: "GET", authorization: "Bearer token-123" },
-      { path: `/api/v1/files/${file.id}/download`, method: "GET", authorization: "Bearer token-123" },
+      { path: `/api/v1/files/${file.id}/download?disposition=attachment`, method: "GET", authorization: "Bearer token-123" },
       { path: `/api/v1/files/${file.id}/share`, method: "POST", authorization: "Bearer token-123" },
       { path: `/api/v1/files/${file.id}`, method: "DELETE", authorization: "Bearer token-123" },
     ]);
+  });
+
+  it("requests inline delivery only for the separate View action", async () => {
+    const paths: string[] = [];
+    const client = createApiClient({ baseUrl: "/api/v1", getToken: () => "token-123", fetchImpl: async (path: string) => {
+      paths.push(path); return success({ file, downloadUrl: "https://example.invalid/preview", expiresIn: 600 });
+    } });
+    await createHttpFilesRepository(client).getDownload(file.id, "inline");
+    expect(paths).toEqual([`/api/v1/files/${file.id}/download?disposition=inline`]);
   });
 
   it("sends the chosen share lifetime to the backend", async () => {

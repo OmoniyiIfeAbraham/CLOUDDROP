@@ -53,7 +53,7 @@ export const DashboardPage = () => {
           <StatusView kind="error" title="Recent files unavailable" description={userMessage(recent.error)} onRetry={() => recent.refetch()} />
         ) : recentFiles.length === 0 ? (
           <StatusView kind="empty" title="No files yet" description="Upload your first file to start building your workspace." action={<Link className="button button--primary" to="/upload"><UploadCloud size={17} /> Upload a file</Link>} />
-        ) : <FileTable files={recentFiles} compact onDownload={actions.download} onShare={actions.share} onDelete={actions.requestDelete} busyFileId={actions.busyFileId} />}
+        ) : <FileTable files={recentFiles} compact onView={actions.view} onDownload={actions.download} onShare={actions.share} onDelete={actions.requestDelete} busyFileId={actions.busyFileId} />}
       </section>
       {actions.dialogs}
     </div>

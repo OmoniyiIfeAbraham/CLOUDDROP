@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Download, ExternalLink, Link2, Trash2 } from "lucide-react";
+import { FilePreview } from "../components/FilePreview";
 import { Dialog } from "../../../components/ui/Dialog";
 import { useToast } from "../../../components/ui/toast-context";
 import { formatBytes, formatDateTime, formatDuration } from "../../../lib/format";
 import { fileMessage } from "../../../lib/messages";
 import { useFilesRepository } from "../api/files-context";
 import type { FileRecord, ShareResult } from "../model/file.types";
-import { canSaveDirectly, requireHttpsUrl } from "../lib/file-links";
+import { canSaveDirectly, requireHttpsUrl, startFileDownload } from "../lib/file-links";
 
 const SHARE_DURATIONS = [
   { hours: 1, label: "1 hour" },
@@ -24,6 +25,7 @@ export const useFileActions = () => {
   const location = useLocation();
   const { notify } = useToast();
   const [busyFileId, setBusyFileId] = useState<string | null>(null);
+  const [fileAction, setFileAction] = useState<"download" | "view">("download");
   const [downloadTarget, setDownloadTarget] = useState<FileRecord | null>(null);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadError, setDownloadError] = useState("");
@@ -53,7 +55,7 @@ export const useFileActions = () => {
     if (!downloadUrl || !downloadExpiresAt) return;
     const timer = window.setTimeout(() => {
       setDownloadUrl("");
-      setDownloadError("This download link has expired. Try again for a new link.");
+      setDownloadError("This file link has expired. Try again for a new link.");
     }, Math.max(0, downloadExpiresAt - Date.now()));
     return () => window.clearTimeout(timer);
   }, [downloadUrl, downloadExpiresAt]);
@@ -67,10 +69,11 @@ export const useFileActions = () => {
     return () => window.clearTimeout(timer);
   }, [shareResult, shareExpiresAt]);
 
-  const download = async (file: FileRecord) => {
+  const openFile = async (file: FileRecord, action: "download" | "view") => {
     if (activeDownload.current || activeDelete.current) return;
     activeDownload.current = true;
     const requestId = ++downloadRequestId.current;
+    setFileAction(action);
     setDownloadTarget(file);
     setDownloadUrl("");
     setDownloadError("");
@@ -78,13 +81,25 @@ export const useFileActions = () => {
     setDownloadLoading(true);
     setBusyFileId(file.id);
     try {
-      const result = await repository.getDownload(file.id);
+      const result = await repository.getDownload(file.id, action === "view" ? "inline" : "attachment");
       if (requestId !== downloadRequestId.current) return;
       const url = requireHttpsUrl(result.downloadUrl);
+      if (action === "download" && !canSaveDirectly(url)) {
+        setDownloadError("Direct download is not available for this file yet. You can use View to preview it.");
+        return;
+      }
+      if (action === "view" && /^attachment(?:\s*;|\s*$)/i.test(new URL(url).searchParams.get("response-content-disposition") ?? "")) {
+        setDownloadError("A preview is not available for this file. Use Download to save it.");
+        return;
+      }
       setDownloadUrl(url);
       setDownloadExpiresAt(Date.now() + result.expiresIn * 1000);
+      if (action === "download") {
+        startFileDownload(url, file.originalName);
+        notify(`Download requested for ${file.originalName}. Check your browser’s downloads.`);
+      }
     } catch (error) {
-      if (requestId === downloadRequestId.current) setDownloadError(fileMessage(error, "The download link could not be created. Please try again."));
+      if (requestId === downloadRequestId.current) setDownloadError(fileMessage(error, action === "view" ? "The preview could not be loaded. Please try again." : "The download link could not be created. Please try again."));
     } finally {
       if (requestId === downloadRequestId.current) {
         activeDownload.current = false;
@@ -93,6 +108,9 @@ export const useFileActions = () => {
       }
     }
   };
+
+  const download = (file: FileRecord) => openFile(file, "download");
+  const view = (file: FileRecord) => openFile(file, "view");
 
   const closeDownload = () => {
     downloadRequestId.current += 1;
@@ -187,24 +205,25 @@ export const useFileActions = () => {
 
   const dialogs = (
     <>
-      <Dialog title="Download file" open={!!downloadTarget} onClose={closeDownload}>
+      <Dialog title={fileAction === "view" ? "View file" : "Download file"} open={!!downloadTarget} onClose={closeDownload}>
         <div className="dialog__body">
           <p className="dialog__intro"><strong>{downloadTarget?.originalName}</strong>{downloadTarget && <> <span aria-hidden="true">·</span> {formatBytes(downloadTarget.size)}</>}</p>
-          {downloadLoading && <div className="inline-progress" role="status"><span className="spinner" aria-hidden="true" /> Preparing your download...</div>}
+          {downloadLoading && <div className="inline-progress" role="status"><span className="spinner" aria-hidden="true" /> {fileAction === "view" ? "Preparing your preview..." : "Preparing your download..."}</div>}
           {downloadError && <div className="inline-alert" role="alert">{downloadError}</div>}
-          {downloadUrl && <p className="dialog__intro">{canSaveDirectly(downloadUrl) ? "Your file is ready. Choose where to save it when your browser asks." : "Open the file, then use your browser’s save or download option to save it to your device."}</p>}
+          {downloadUrl && downloadTarget && (fileAction === "view" ? (
+            <div className="file-preview"><FilePreview file={downloadTarget} url={downloadUrl} onError={() => { setDownloadUrl(""); setDownloadError("The preview could not be loaded. Please try again."); }} /></div>
+          ) : <p className="dialog__intro" role="status">Your download has been requested. Check your browser’s downloads. If it did not start, use Save file below.</p>)}
           <div className="dialog__actions">
             <button className="button button--secondary" type="button" onClick={closeDownload}>{downloadLoading ? "Cancel" : "Close"}</button>
-            {downloadError && !downloadLoading && downloadTarget && <button className="button button--primary" type="button" onClick={() => void download(downloadTarget)}>Try again</button>}
-            {downloadUrl && <a className="button button--primary" href={downloadUrl} target={canSaveDirectly(downloadUrl) ? "_self" : "_blank"} rel="noopener noreferrer" download={downloadTarget?.originalName} onClick={(event) => {
+            {downloadError && !downloadLoading && downloadTarget && <button className="button button--primary" type="button" onClick={() => void openFile(downloadTarget, fileAction)}>Try again</button>}
+            {fileAction === "download" && downloadTarget && !downloadLoading && <button className="button button--secondary" type="button" onClick={() => void view(downloadTarget)}>View file</button>}
+            {fileAction === "view" && downloadTarget && !downloadLoading && <button className="button button--primary" type="button" onClick={() => void download(downloadTarget)}><Download size={16} /> Download</button>}
+            {downloadUrl && fileAction === "download" && <a className="button button--primary" href={downloadUrl} target="_self" rel="noopener noreferrer" referrerPolicy="no-referrer" download={downloadTarget?.originalName} onClick={(event) => {
               if (downloadExpiresAt && Date.now() >= downloadExpiresAt) {
-                event.preventDefault();
-                setDownloadUrl("");
-                setDownloadError("This download link has expired. Try again for a new link.");
-              } else if (canSaveDirectly(downloadUrl)) {
-                notify(`Download started for ${downloadTarget?.originalName}.`);
+                event.preventDefault(); setDownloadUrl(""); setDownloadError("This file link has expired. Try again for a new link.");
               }
-            }}><Download size={16} /> {canSaveDirectly(downloadUrl) ? "Save file" : "Open file"}</a>}
+            }}><Download size={16} /> Save file</a>}
+
           </div>
         </div>
       </Dialog>
@@ -253,5 +272,5 @@ export const useFileActions = () => {
     </>
   );
 
-  return { download, share, requestDelete, busyFileId, dialogs };
+  return { download, view, share, requestDelete, busyFileId, dialogs };
 };

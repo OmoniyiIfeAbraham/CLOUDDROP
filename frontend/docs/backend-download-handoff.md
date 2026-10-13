@@ -1,41 +1,25 @@
 # Direct download handoff
 
-Prepared October 12, 2026. Owner action: backend download endpoint, then Samuel's backend deployment.
+Updated October 13, 2026. Owner action: backend download endpoint, then Samuel's backend deployment.
 
-The frontend prepares a fresh link in an accessible download dialog. Signed S3 links with attachment disposition and binary delivery offer **Save file**. Other links offer **Open file** with browser saving instructions. Preparation can be cancelled, failures can be retried, and expired links are removed.
+The frontend now offers separate **View** and **Download** actions on the dashboard, file library and file details page. View opens a preview dialog for supported images, video, audio, PDF and text. Download prepares a fresh link and automatically initiates saving from the first click when the link signs attachment and binary delivery. Save file remains a manual fallback if the browser blocks an automatic download. Inline links returned to Download are rejected with clear feedback; they never silently become a viewing tab.
+
+The frontend sends `GET /api/v1/files/:id/download?disposition=attachment` for Download and `?disposition=inline` for View. Both requests use the existing response shape (`file`, `downloadUrl`, `expiresIn`). The current backend ignores this query and returns inline links, so production downloads remain blocked until the backend handoff is implemented. View remains compatible with the current links.
 
 Production currently signs a plain `GetObjectCommand`. Browser-displayable files open inline. The S3 bucket returned `CORSResponse: CORS is not enabled for this bucket` during the October 12 check. An HTML `download` attribute cannot force saving from a cross-origin S3 URL. [MDN documents that restriction](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download).
 
 ## Backend change to implement
 
-In `backend/src/services/s3-download.service.ts`, sign the `GetObjectCommand` with `ResponseContentDisposition` set to an attachment header built from the original filename and `ResponseContentType` set to `application/octet-stream`. Pass `file.originalName` from the active `downloadFile` handler in `backend/src/controllers/files.controller.ts`. Check the legacy handler in `backend/src/controllers/download.controller.ts` if its router is still used.
+Validate optional `disposition` as `attachment` or `inline` in the mounted download handler in `backend/src/controllers/files.controller.ts`. Reject unsupported values with a 400 error; default to attachment for existing callers. Pass the requested disposition, original filename and stored MIME type into `generateDownloadUrl` in `backend/src/services/s3-download.service.ts`. Check the legacy handler in `backend/src/controllers/download.controller.ts` if its router is still used.
 
-For example, after adding a direct dependency on a standards-compliant header builder:
+Before signing the `GetObjectCommand`, set:
 
-```ts
-import { create as createContentDisposition } from "content-disposition";
+| Action | ResponseContentDisposition | ResponseContentType |
+| --- | --- | --- |
+| Download | attachment with the original filename | application/octet-stream |
+| View | inline with the original filename | The stored file MIME type |
 
-export const generateDownloadUrl = async (
-  s3Key: string,
-  expiresIn = 600,
-  originalName?: string,
-) => {
-  const command = new GetObjectCommand({
-    Bucket: S3_BUCKET_NAME,
-    Key: s3Key,
-    ...(originalName ? {
-      ResponseContentDisposition: createContentDisposition(originalName, { type: "attachment" }),
-      ResponseContentType: "application/octet-stream",
-    } : {}),
-  });
-  return getSignedUrl(s3Client, command, { expiresIn });
-};
-
-// Active download controller:
-const downloadUrl = await generateDownloadUrl(file.s3Key, expiresIn, file.originalName);
-```
-
-The named `create` API is described in the [current content-disposition documentation](https://github.com/jshttp/content-disposition). Check the API of the version the backend owner selects and its TypeScript definitions. Use a header builder that handles quotes, paths, and Unicode rather than interpolating a raw upload name into a header.
+Build the disposition header with a standards-compliant library that handles quotes, spaces and Unicode filenames. Do not interpolate raw upload names into a response header. Keep the existing ownership check, expiry, response envelope, stored MIME type and sharing behavior. The named header-building API previously considered is documented in [content-disposition](https://github.com/jshttp/content-disposition); verify the installed version and its TypeScript definitions.
 
 Set the override **before signing**. Appending it to an existing URL invalidates the signature. S3 includes `response-content-disposition=attachment...` in the signed URL and sends the corresponding response header. [AWS documents the authenticated header override](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html).
 
@@ -44,8 +28,9 @@ Keep the existing ownership check, 600-second expiry, and response envelope. Bin
 ## Acceptance after deployment
 
 1. The signed URL includes the attachment disposition/original name and `response-content-type=application/octet-stream`; S3 returns both corresponding headers. Cover ASCII, spaces, quotes, and Unicode.
-2. **Save file** produces a browser download with the original name and uploaded bytes in desktop/mobile Chromium and WebKit. The workspace stays open.
-3. No API authentication header is sent to S3. Other users' file IDs remain inaccessible. Sharing and deletion still work.
+2. One **Download** click produces a browser download with the original name and uploaded bytes in desktop/mobile Chromium and WebKit. No viewing tab opens and the workspace stays open.
+3. **View** requests inline delivery and shows supported files in the preview dialog without starting a download. Unsupported types show an explanation.
+4. No API authentication header is sent to S3. Other users' file IDs remain inaccessible. Sharing and deletion still work.
 
 `npm run test:downloads` in `frontend/` verifies the frontend against local HTTP fixtures, including saved bytes and a Unicode filename. After both images are deployed, run:
 
@@ -53,8 +38,8 @@ Keep the existing ownership check, 600-second expiry, and response envelope. Bin
 E2E_BASE_URL=https://clouddrop-c8.duckdns.org VITE_USE_MOCK_API=false npm run test:e2e -- e2e/live-flow.spec.ts
 ```
 
-The live flow checks a browser download when attachment links are present and the explicit fallback otherwise. It creates unique test accounts and removes its uploaded file during the successful delete step.
+The live flow checks separate inline viewing and a browser download from the first Download click. It is an acceptance gate after the backend supports the disposition contract. It creates unique test accounts and removes its uploaded file during the successful delete step.
 
-## Message for the team
+## Owner summary
 
-> Frontend download UX is ready: preparation, cancellation, retry, expiry, and a safe fallback are covered. Please sign the download GetObject request with ResponseContentDisposition: attachment (original filename) and ResponseContentType: application/octet-stream. Pass file.originalName from the active controller. The frontend will then offer Save file. No S3 CORS change is needed; sharing and stored MIME types stay unchanged.
+Frontend implementation is ready for review. The backend must honor `disposition=attachment` and `disposition=inline`, signing the original filename and correct response type before producing the URL. Deploy both changes, then repeat the byte/filename checks and confirm View never starts a download. No S3 CORS workaround is required. Sharing and stored MIME metadata stay unchanged.

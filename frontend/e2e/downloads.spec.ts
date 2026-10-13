@@ -37,7 +37,10 @@ test.beforeAll(async () => {
     response.setHeader("Content-Type", url.searchParams.get("response-content-type") ?? "text/plain");
     const attachment = url.searchParams.get("response-content-disposition");
     if (attachment) response.setHeader("Content-Disposition", attachment);
-    response.end(content);
+    if (url.pathname === "/image.png") {
+      response.setHeader("Content-Type", "image/png");
+      response.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=", "base64"));
+    } else response.end(content);
   });
   await new Promise<void>((resolve) => storage.listen(0, "127.0.0.1", resolve));
   storageOrigin = `https://127.0.0.1:${(storage.address() as AddressInfo).port}`;
@@ -49,7 +52,7 @@ test.afterAll(async () => {
 });
 
 const installFixtures = async (page: Page, options: {
-  attachment?: boolean; failFirst?: boolean; gate?: Promise<void>; expiresIn?: number;
+  image?: boolean; attachment?: boolean; failFirst?: boolean; gate?: Promise<void>; expiresIn?: number;
 } = {}) => {
   let requested = 0;
   storageRequests.length = 0;
@@ -58,6 +61,7 @@ const installFixtures = async (page: Page, options: {
   });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    const record = options.image ? { ...file, mimeType: "image/png", category: "Images" } : file;
     let data: unknown;
     if (path.endsWith("/auth/me")) {
       data = { user: { id: "fixture-user", firstName: "Ada", lastName: "Lovelace", email: "fixture@example.test" } };
@@ -68,17 +72,17 @@ const installFixtures = async (page: Page, options: {
         await route.fulfill({ status: 500, json: { success: false, message: "Unavailable", error: { code: "DOWNLOAD_FAILED" } } });
         return;
       }
-      const url = new URL("/object.txt", storageOrigin);
+      const url = new URL(options.image ? "/image.png" : "/object.txt", storageOrigin);
       url.searchParams.set("X-Amz-Signature", `fixture-${requested}`);
       if (options.attachment) {
         url.searchParams.set("response-content-disposition", disposition);
         url.searchParams.set("response-content-type", "application/octet-stream");
       }
-      data = { file, downloadUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
+      data = { file: record, downloadUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
     } else if (path.endsWith(`/files/${file.id}`)) {
-      data = { file };
+      data = { file: record };
     } else if (path.endsWith("/files")) {
-      data = { files: [file], pagination: { page: 1, limit: 10, total: 1, totalPages: 1 } };
+      data = { files: [record], pagination: { page: 1, limit: 10, total: 1, totalPages: 1 } };
     } else {
       throw new Error(`Unexpected API request: ${path}`);
     }
@@ -91,14 +95,11 @@ const installFixtures = async (page: Page, options: {
 
 test("a signed attachment saves the original filename and bytes without CORS", async ({ page }, testInfo) => {
   const fixtures = await installFixtures(page, { attachment: true });
-  await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
-  const save = page.getByRole("link", { name: "Save file" });
-  await expect(save).toBeVisible();
-  expect(fixtures.storageRequests).toHaveLength(0);
-  await page.screenshot({ path: testInfo.outputPath("download-ready.png"), fullPage: true });
   const downloadEvent = page.waitForEvent("download");
-  await save.click();
+  await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
   const download = await downloadEvent;
+  await expect(page.getByRole("link", { name: "Save file" })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("download-started.png"), fullPage: true });
   expect(download.suggestedFilename()).toBe(filename);
   const saved = testInfo.outputPath(filename);
   await download.saveAs(saved);
@@ -110,27 +111,38 @@ test("a signed attachment saves the original filename and bytes without CORS", a
   await expect(page).toHaveURL(/\/files$/);
 });
 
-test("current backend links offer an explicit preview and saving fallback", async ({ page }, testInfo) => {
+test("Download refuses inline links and View opens a separate preview", async ({ page }, testInfo) => {
   const fixtures = await installFixtures(page);
   await page.setViewportSize({ width: 320, height: 700 });
-  const trigger = page.getByRole("button", { name: `Download ${filename}`, exact: true });
-  await trigger.click();
-  await expect(page.getByRole("link", { name: "Open file" })).toBeVisible();
-  await expect(page.getByText(/use your browser’s save or download option/)).toBeVisible();
-  await expect(page.getByText(/Download started/)).toHaveCount(0);
+  await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Direct download is not available");
+  await expect(page.getByRole("link", { name: "Open file" })).toHaveCount(0);
   expect(fixtures.storageRequests).toHaveLength(0);
-  const results = await new AxeBuilder({ page }).analyze();
+  await page.getByRole("button", { name: "View file", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "View file" })).toBeVisible();
+  await expect(page.frameLocator(`iframe[title="Preview of ${filename}"]`).locator("body")).toContainText(content.trim());
+  // Uploaded document contents are external; verify the titled frame separately from the owned dialog.
+  const results = await new AxeBuilder({ page }).exclude(".file-preview iframe").analyze();
   expect(results.violations.map(({ id }) => id)).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("download-fallback-320.png"), fullPage: true });
-  const popupEvent = page.waitForEvent("popup");
-  await page.getByRole("link", { name: "Open file" }).click();
-  const popup = await popupEvent;
-  await expect(popup.locator("body")).toContainText(content.trim());
-  await popup.close();
+  await page.screenshot({ path: testInfo.outputPath("view-preview-320.png"), fullPage: true });
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Download file" })).not.toBeVisible();
-  await expect(trigger).toBeFocused();
+  await expect(page.getByRole("dialog", { name: "View file" })).not.toBeVisible();
+  expect(page.context().pages()).toHaveLength(1);
+});
+
+test("View displays an image without opening a tab or downloading it", async ({ page }, testInfo) => {
+  const fixtures = await installFixtures(page, { image: true });
+  await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
+  const image = page.getByRole("img", { name: filename });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  expect(fixtures.storageRequests).toHaveLength(1);
+  expect(fixtures.storageRequests[0]!.headers.authorization).toBeUndefined();
+  expect(page.context().pages()).toHaveLength(1);
+  const result = await new AxeBuilder({ page }).analyze();
+  expect(result.violations.map(({ id }) => id)).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("image-view.png"), fullPage: true });
 });
 
 test("cancelled preparation ignores a late response", async ({ page }, testInfo) => {
@@ -141,7 +153,7 @@ test("cancelled preparation ignores a late response", async ({ page }, testInfo)
   await expect(page.getByText("Preparing your download...")).toBeVisible();
   await expect.poll(fixtures.requests).toBe(1);
   await page.screenshot({ path: testInfo.outputPath("download-preparing.png"), fullPage: true });
-  const response = page.waitForResponse((value) => value.url().endsWith("/download"));
+  const response = page.waitForResponse((value) => new URL(value.url()).pathname.endsWith("/download"));
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   release();
   await response;
@@ -151,15 +163,15 @@ test("cancelled preparation ignores a late response", async ({ page }, testInfo)
 });
 
 test("failed requests retry and expired links are renewed", async ({ page }, testInfo) => {
-  const fixtures = await installFixtures(page, { failFirst: true, expiresIn: 0.5 });
+  const fixtures = await installFixtures(page, { attachment: true, failFirst: true, expiresIn: 0.5 });
   await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("The download link could not be created.");
   await page.screenshot({ path: testInfo.outputPath("download-error.png"), fullPage: true });
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("link", { name: "Open file" })).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText("This download link has expired.");
-  await expect(page.getByRole("link", { name: "Open file" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Save file" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("This file link has expired.");
+  await expect(page.getByRole("link", { name: "Save file" })).toHaveCount(0);
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("link", { name: "Open file" })).toHaveAttribute("href", /fixture-3/);
+  await expect(page.getByRole("link", { name: "Save file" })).toHaveAttribute("href", /fixture-3/);
   expect(fixtures.requests()).toBe(3);
 });

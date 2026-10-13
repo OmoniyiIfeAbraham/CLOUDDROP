@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
-import { Download, FileArchive, FileAudio, FileImage, FileText, FileVideo, MoreHorizontal, Share2, Trash2 } from "lucide-react";
+import { Download, Eye, FileArchive, FileAudio, FileImage, FileText, FileVideo, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import type { FileRecord } from "../model/file.types";
 import { formatBytes, formatDate } from "../../../lib/format";
 
 interface FileTableProps {
   files: FileRecord[];
+  onView: (file: FileRecord) => void;
   onDownload: (file: FileRecord) => void;
   onShare: (file: FileRecord) => void;
   onDelete: (file: FileRecord) => void;
@@ -26,7 +27,7 @@ export const FileGlyph = ({ file }: { file: Pick<FileRecord, "category"> }) => {
   return <span className={`file-glyph file-glyph--${file.category.toLowerCase()}`}><Icon size={20} strokeWidth={1.8} /></span>;
 };
 
-export const FileTable = ({ files, onDownload, onShare, onDelete, busyFileId, compact = false }: FileTableProps) => (
+export const FileTable = ({ files, onView, onDownload, onShare, onDelete, busyFileId, compact = false }: FileTableProps) => (
   <div className="file-table-scroll">
     <table className={`file-table ${compact ? "file-table--compact" : ""}`}>
       <caption className="sr-only">{compact ? "Recent files" : "Your files"}</caption>
@@ -51,6 +52,7 @@ export const FileTable = ({ files, onDownload, onShare, onDelete, busyFileId, co
             <td className="file-table__meta">{formatDate(file.createdAt)}</td>
             <td>
               <div className="file-actions">
+                <button type="button" className="icon-button" aria-label={`View ${file.originalName}`} title="View" disabled={busyFileId === file.id} onClick={() => onView(file)}><Eye size={17} /></button>
                 <button type="button" className="icon-button" aria-label={`Download ${file.originalName}`} title="Download" disabled={busyFileId === file.id} onClick={() => onDownload(file)}><Download size={17} /></button>
                 <button type="button" className="icon-button" aria-label={`Share ${file.originalName}`} title="Share" disabled={busyFileId === file.id} onClick={() => onShare(file)}><Share2 size={17} /></button>
                 <button type="button" className="icon-button icon-button--danger" aria-label={`Delete ${file.originalName}`} title="Delete" disabled={busyFileId === file.id} onClick={() => onDelete(file)}><Trash2 size={17} /></button>

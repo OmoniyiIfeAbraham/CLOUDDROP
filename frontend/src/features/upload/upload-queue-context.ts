@@ -4,7 +4,7 @@ import type { Category } from "../files/model/file.types";
 export interface QueueItem {
   id: string;
   file: File;
-  category: Category;
+  readonly category: Category;
   status: "ready" | "uploading" | "complete" | "error";
   progress: number;
   error?: string | undefined;
@@ -15,7 +15,6 @@ export interface UploadQueueValue {
   queue: QueueItem[];
   uploading: boolean;
   addFiles: (files: FileList | File[]) => void;
-  setCategory: (id: string, category: Category) => void;
   retry: (id: string) => void;
   remove: (id: string) => void;
   clear: () => void;

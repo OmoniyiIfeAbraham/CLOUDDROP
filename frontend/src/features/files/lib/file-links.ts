@@ -14,3 +14,15 @@ export const canSaveDirectly = (value: string): boolean => {
   const contentType = url.searchParams.get("response-content-type")?.split(";")[0]?.trim().toLowerCase();
   return attachment && contentType === "application/octet-stream";
 };
+
+export const startFileDownload = (url: string, filename: string): void => {
+  const link = document.createElement("a");
+  link.href = requireHttpsUrl(url);
+  link.download = filename;
+  link.rel = "noopener noreferrer";
+  link.referrerPolicy = "no-referrer";
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+};

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_FILE_SIZE, suggestCategory, uploadFileHttp, validateUploadFile } from "./upload-service";
+import { MAX_FILE_SIZE, categoryForMimeType, uploadFileHttp, validateUploadFile } from "./upload-service";
 import { sessionToken } from "../../lib/runtime";
 import { SESSION_EXPIRED_EVENT } from "../../lib/api";
 import { normalFileFixtures } from "../files/api/files.fixtures";
@@ -80,15 +80,15 @@ describe("upload validation", () => {
     expect(validateUploadFile(overLimit)).toMatch(/25 MB/);
   });
 
-  it("suggests the same category the backend would assign", () => {
-    expect(suggestCategory("application/pdf")).toBe("Documents");
-    expect(suggestCategory("text/csv")).toBe("Documents");
-    expect(suggestCategory("IMAGE/PNG")).toBe("Images");
-    expect(suggestCategory("video/webm")).toBe("Videos");
-    expect(suggestCategory("audio/ogg")).toBe("Audio");
-    expect(suggestCategory("application/x-7z-compressed")).toBe("Archives");
-    expect(suggestCategory("application/octet-stream")).toBe("Other");
-    expect(suggestCategory("")).toBe("Other");
+  it("derives the category using the backend MIME rules", () => {
+    expect(categoryForMimeType("application/pdf")).toBe("Documents");
+    expect(categoryForMimeType("text/csv")).toBe("Documents");
+    expect(categoryForMimeType("IMAGE/PNG")).toBe("Images");
+    expect(categoryForMimeType("video/webm")).toBe("Videos");
+    expect(categoryForMimeType("audio/ogg")).toBe("Audio");
+    expect(categoryForMimeType("application/x-7z-compressed")).toBe("Archives");
+    expect(categoryForMimeType("application/octet-stream")).toBe("Other");
+    expect(categoryForMimeType("")).toBe("Other");
   });
 });
 
@@ -96,13 +96,13 @@ describe("HTTP upload", () => {
   const file = new File(["notes"], "notes.txt", { type: "text/plain" });
 
   it("requires a token before creating a request", async () => {
-    await expect(uploadFileHttp(file, "Documents")).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
+    await expect(uploadFileHttp(file)).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
   });
 
   it("sends multipart fields and reports progress", async () => {
     sessionToken.set("secret-token");
     const onProgress = vi.fn();
-    const pending = uploadFileHttp(file, "Documents", onProgress);
+    const pending = uploadFileHttp(file, onProgress);
     const request = FakeRequest.current;
     expect(request.method).toBe("POST");
     expect(request.url).toBe("/api/v1/files");
@@ -116,11 +116,25 @@ describe("HTTP upload", () => {
     await expect(pending).resolves.toEqual(normalFileFixtures[0]);
   });
 
+  it.each([
+    ["report.pdf", "application/pdf", "Documents"],
+    ["photo.png", "image/png", "Images"],
+    ["movie.mp4", "video/mp4", "Videos"],
+    ["song.mp3", "audio/mpeg", "Audio"],
+    ["backup.zip", "application/zip", "Archives"],
+  ])("derives the multipart category for %s without a caller override", async (name, type, category) => {
+    sessionToken.set("secret-token");
+    const pending = uploadFileHttp(new File(["bytes"], name, { type }));
+    expect((FakeRequest.current.body as FormData).get("category")).toBe(category);
+    FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: { file: { ...normalFileFixtures[0], originalName: name, mimeType: type, category } } }));
+    await expect(pending).resolves.toMatchObject({ category });
+  });
+
   it("normalizes a non-JSON 401 and expires the session", async () => {
     sessionToken.set("expired-token");
     const listener = vi.fn();
     window.addEventListener(SESSION_EXPIRED_EVENT, listener);
-    const pending = uploadFileHttp(file, "Documents");
+    const pending = uploadFileHttp(file);
     FakeRequest.current.respond(401, "<html>Unauthorized</html>");
     await expect(pending).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
     expect(sessionToken.get()).toBeNull();
@@ -132,7 +146,7 @@ describe("HTTP upload", () => {
     sessionToken.set("old-token");
     const listener = vi.fn();
     window.addEventListener(SESSION_EXPIRED_EVENT, listener);
-    const pending = uploadFileHttp(file, "Documents");
+    const pending = uploadFileHttp(file);
     sessionToken.set("new-token");
     FakeRequest.current.respond(401, "Unauthorized");
     await expect(pending).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -143,37 +157,37 @@ describe("HTTP upload", () => {
 
   it("marks server failures retryable and handles network errors", async () => {
     sessionToken.set("token");
-    const failure = uploadFileHttp(file, "Documents");
+    const failure = uploadFileHttp(file);
     FakeRequest.current.respond(503, JSON.stringify({ success: false, message: "Service unavailable", error: { code: "SERVICE_UNAVAILABLE" } }));
     await expect(failure).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE", status: 503, retryable: true });
-    const network = uploadFileHttp(file, "Documents");
+    const network = uploadFileHttp(file);
     FakeRequest.current.onerror?.();
     await expect(network).rejects.toMatchObject({ code: "NETWORK_ERROR", retryable: true });
   });
 
   it("rejects malformed responses and non-retryable client errors", async () => {
     sessionToken.set("token");
-    const gateway = uploadFileHttp(file, "Documents");
+    const gateway = uploadFileHttp(file);
     FakeRequest.current.respond(502, "<html>Bad gateway</html>");
     await expect(gateway).rejects.toMatchObject({ code: "HTTP_ERROR", status: 502, retryable: true });
 
-    const tooLarge = uploadFileHttp(file, "Documents");
+    const tooLarge = uploadFileHttp(file);
     FakeRequest.current.respond(413, "<html>413 Request Entity Too Large</html>");
     await expect(tooLarge).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE", status: 413, retryable: false });
 
-    const malformed = uploadFileHttp(file, "Documents");
+    const malformed = uploadFileHttp(file);
     FakeRequest.current.respond(200, "<html>not json</html>");
     await expect(malformed).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 200 });
 
-    const missingFile = uploadFileHttp(file, "Documents");
+    const missingFile = uploadFileHttp(file);
     FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: {} }));
     await expect(missingFile).rejects.toMatchObject({ code: "INVALID_RESPONSE", status: 201 });
 
-    const malformedFile = uploadFileHttp(file, "Documents");
+    const malformedFile = uploadFileHttp(file);
     FakeRequest.current.respond(201, JSON.stringify({ success: true, message: "Uploaded", data: { file: { id: "file-1" } } }));
     await expect(malformedFile).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
 
-    const invalid = uploadFileHttp(file, "Documents");
+    const invalid = uploadFileHttp(file);
     FakeRequest.current.respond(400, JSON.stringify({ success: false, message: "Invalid upload", error: { code: "INVALID_UPLOAD" } }));
     await expect(invalid).rejects.toMatchObject({ code: "INVALID_UPLOAD", status: 400, retryable: false });
   });
@@ -181,14 +195,14 @@ describe("HTTP upload", () => {
   it("aborts the request when the upload is cancelled", async () => {
     sessionToken.set("token");
     const controller = new AbortController();
-    const pending = uploadFileHttp(file, "Documents", undefined, controller.signal);
+    const pending = uploadFileHttp(file, undefined, controller.signal);
     const request = FakeRequest.current;
     controller.abort();
     await expect(pending).rejects.toMatchObject({ code: "UPLOAD_CANCELLED" });
     expect(request.aborted).toBe(true);
 
     const before = FakeRequest.current;
-    await expect(uploadFileHttp(file, "Documents", undefined, controller.signal)).rejects.toMatchObject({ code: "UPLOAD_CANCELLED" });
+    await expect(uploadFileHttp(file, undefined, controller.signal)).rejects.toMatchObject({ code: "UPLOAD_CANCELLED" });
     expect(FakeRequest.current).toBe(before);
   });
 });

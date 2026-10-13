@@ -33,7 +33,7 @@ export const ALLOWED_MIME_TYPES = new Set([
   "application/x-7z-compressed",
 ]);
 
-// Mirrors backend/src/lib/category.ts so suggestions match the server's own rules.
+// Mirrors backend/src/lib/category.ts; the category is derived, never selected.
 const MIME_TO_CATEGORY: Record<string, Category> = {
   "application/pdf": "Documents",
   "application/msword": "Documents",
@@ -62,7 +62,7 @@ const MIME_PREFIX_TO_CATEGORY: Array<[string, Category]> = [
   ["audio/", "Audio"],
 ];
 
-export const suggestCategory = (mimeType: string): Category => {
+export const categoryForMimeType = (mimeType: string): Category => {
   const normalized = mimeType.toLowerCase().trim();
   const exact = MIME_TO_CATEGORY[normalized];
   if (exact) return exact;
@@ -79,7 +79,6 @@ const cancelled = (): ApiError => new ApiError({ message: "Upload was cancelled.
 
 export const uploadFileHttp = (
   file: File,
-  category: Category,
   onProgress?: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<FileRecord> => new Promise((resolve, reject) => {
@@ -96,7 +95,7 @@ export const uploadFileHttp = (
   const request = new XMLHttpRequest();
   const body = new FormData();
   body.append("file", file);
-  body.append("category", category);
+  body.append("category", categoryForMimeType(file.type));
   request.open("POST", `${API_BASE_URL.replace(/\/$/, "")}/files`);
   request.setRequestHeader("Authorization", `Bearer ${token}`);
   request.setRequestHeader("Accept", "application/json");
