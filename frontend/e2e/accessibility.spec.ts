@@ -75,7 +75,7 @@ test("workspace and file actions meet automated accessibility checks", async ({ 
     { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") },
     { name: "run.exe", mimeType: "application/x-msdownload", buffer: Buffer.from("MZ") },
   ]);
-  await expect(page.getByRole("combobox", { name: "Category for notes.txt" })).toHaveValue("Documents");
+  await expect(page.getByLabel("Category for notes.txt: Documents")).toHaveText("Documents");
   await expect(page.getByRole("listitem").filter({ hasText: "run.exe" })).toContainText("This file type is not supported.");
   await audit(page, "upload queue and validation");
 });

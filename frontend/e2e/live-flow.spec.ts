@@ -53,7 +53,7 @@ test("register, sign in, upload, list, download, share, and delete through the l
     await openNavigation();
     await page.getByRole("link", { name: "Upload", exact: true }).click();
     await page.locator('input[type="file"]').setInputFiles({ name: fileName, mimeType: "text/plain", buffer: Buffer.from(content) });
-    await expect(page.getByRole("combobox", { name: `Category for ${fileName}` })).toHaveValue("Documents");
+    await expect(page.getByLabel(`Category for ${fileName}: Documents`)).toHaveText("Documents");
     const uploaded = page.waitForResponse((response) => isApi(response.url(), /\/api\/v1\/files$/) && response.request().method() === "POST");
     await page.getByRole("button", { name: "Upload 1 file" }).click();
     expect((await uploaded).status()).toBe(201);
@@ -74,33 +74,24 @@ test("register, sign in, upload, list, download, share, and delete through the l
     await capture(page, testInfo, "04-listed");
   });
 
+  await test.step("view", async () => {
+    await page.getByRole("button", { name: `View ${fileName}`, exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "View file" })).toBeVisible();
+    await expect(page.frameLocator(`iframe[title="Preview of ${fileName}"]`).locator("body")).toContainText(content);
+    await page.getByRole("button", { name: "Close dialog" }).click();
+  });
+
   await test.step("download", async () => {
     const requested = page.waitForResponse((response) => isApi(response.url(), /\/api\/v1\/files\/[^/]+\/download$/));
+    const downloadEvent = page.waitForEvent("download");
     await page.getByRole("button", { name: `Download ${fileName}` }).click();
-    const response = await requested;
-    expect(response.status()).toBe(200);
-    const payload = await response.json();
-    const stored = await page.request.get(payload.data.downloadUrl);
-    expect(stored.status()).toBe(200);
-    expect(await stored.text()).toBe(content);
-    await expect(page.getByRole("link", { name: /^(Save file|Open file)$/ })).toBeVisible();
-    const save = page.getByRole("link", { name: "Save file", exact: true });
-    if (await save.count()) {
-      const downloadEvent = page.waitForEvent("download");
-      await save.click();
-      const download = await downloadEvent;
-      expect(download.suggestedFilename()).toBe(fileName);
-      const path = testInfo.outputPath(fileName);
-      await download.saveAs(path);
-      expect(await readFile(path, "utf8")).toBe(content);
-    } else {
-      const popupEvent = page.waitForEvent("popup");
-      await page.getByRole("link", { name: "Open file", exact: true }).click();
-      const popup = await popupEvent;
-      await popup.waitForURL(/^https:\/\//);
-      await expect(popup.locator("body")).toContainText(content);
-      await popup.close();
-    }
+    expect((await requested).status()).toBe(200);
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toBe(fileName);
+    const path = testInfo.outputPath(fileName);
+    await download.saveAs(path);
+    expect(await readFile(path, "utf8")).toBe(content);
+    await expect(page).toHaveURL(/\/files(?:\?.*)?$/);
     await page.getByRole("button", { name: "Close dialog" }).click();
     await capture(page, testInfo, "05-downloaded");
   });

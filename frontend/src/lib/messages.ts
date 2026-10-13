@@ -10,7 +10,7 @@ const knownMessages: Record<string, string> = {
   PAYLOAD_TOO_LARGE: "The server rejected this file because it is too large.",
   UNSUPPORTED_FILE_TYPE: "This file type is not supported.",
   INVALID_FILE_UPLOAD: "This file could not be uploaded. Check it and try again.",
-  INVALID_UPLOAD: "Check the file and category, then try again.",
+  INVALID_UPLOAD: "This file could not be uploaded. Check it and try again.",
   UPLOAD_CANCELLED: "Upload cancelled.",
   FILES_RETRIEVAL_FAILED: "Your files could not be loaded.",
   SEARCH_FAILED: "Search could not be completed.",

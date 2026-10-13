@@ -41,7 +41,7 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
 
   await page.getByRole("button", { name: "Download capstone-proposal.pdf" }).click();
   await expect(page.getByRole("dialog", { name: "Download file" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open file" })).toBeVisible();
+  await expect(page.getByRole("alert")).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
 
   await page.getByRole("button", { name: "Share capstone-proposal.pdf" }).click();
@@ -75,7 +75,7 @@ test("sign in, find files, share, delete, and upload", async ({ page, isMobile }
     mimeType: "text/plain",
     buffer: Buffer.from("CloudDrop smoke test"),
   });
-  await expect(page.getByRole("combobox", { name: "Category for fresh-notes.txt" })).toHaveValue("Documents");
+  await expect(page.getByLabel("Category for fresh-notes.txt: Documents")).toHaveText("Documents");
   await page.getByRole("button", { name: "Upload 1 file" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "fresh-notes.txt" })).toContainText("Uploaded");
   await expect(page.getByRole("button", { name: "All files uploaded" })).toBeVisible();
@@ -163,4 +163,26 @@ test("auth forms reject incomplete details", async ({ page }) => {
   await expect(page.getByLabel("First name")).toHaveAccessibleDescription("Enter your first name");
   await expect(page.getByLabel("First name")).toBeFocused();
   await expect(page.getByLabel("Last name")).toHaveAccessibleDescription("Enter your last name");
+});
+
+test("upload categories are automatic and cannot be edited", async ({ page }, testInfo) => {
+  await page.goto("/login");
+  await page.getByLabel("Email address").fill("demo@clouddrop.app");
+  await page.getByLabel("Password", { exact: true }).fill("securepass123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.goto("/upload");
+  const files = [
+    { name: "report.pdf", mimeType: "application/pdf", category: "Documents" },
+    { name: "photo.png", mimeType: "image/png", category: "Images" },
+    { name: "movie.mp4", mimeType: "video/mp4", category: "Videos" },
+    { name: "song.mp3", mimeType: "audio/mpeg", category: "Audio" },
+    { name: "backup.zip", mimeType: "application/zip", category: "Archives" },
+  ];
+  await page.locator('input[type="file"]').setInputFiles(files.map(({ name, mimeType }) => ({ name, mimeType, buffer: Buffer.from("fixture") })));
+  for (const file of files) await expect(page.getByRole("note", { name: `Category for ${file.name}: ${file.category}` })).toHaveText(file.category);
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("upload-automatic-categories.png"), fullPage: true });
+  await page.getByRole("button", { name: "Upload 5 files" }).click();
+  for (const file of files) await expect(page.getByRole("listitem").filter({ hasText: file.name })).toContainText(`Uploaded to ${file.category}`);
+  await expect(page.getByRole("combobox")).toHaveCount(0);
 });

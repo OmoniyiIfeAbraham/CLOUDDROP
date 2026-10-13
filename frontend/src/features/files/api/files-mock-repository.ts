@@ -1,4 +1,5 @@
 import { ApiError } from "./api-error";
+import { categoryForMimeType } from "../../upload/upload-service";
 import {
   categoryFixtures,
   normalFileFixtures,
@@ -130,7 +131,7 @@ export const createMockFilesRepository = (
       files = files.filter((file) => file.id !== fileId);
     },
 
-    async uploadFile(file: File, category: Category, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord> {
+    async uploadFile(file: File, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord> {
       const cancelled = () => new ApiError({ message: "Upload was cancelled.", code: "UPLOAD_CANCELLED" });
       if (signal?.aborted) throw cancelled();
       onProgress?.(25);
@@ -148,7 +149,7 @@ export const createMockFilesRepository = (
         originalName: file.name,
         mimeType: file.type,
         size: file.size,
-        category,
+        category: categoryForMimeType(file.type),
         createdAt: now,
         updatedAt: now,
       };

@@ -19,6 +19,8 @@ export interface FileRecord {
   updatedAt: string;
 }
 
+export type FileDisposition = "attachment" | "inline";
+
 export interface DownloadResult {
   file: Pick<FileRecord, "id" | "mimeType" | "originalName" | "size">;
   downloadUrl: string;

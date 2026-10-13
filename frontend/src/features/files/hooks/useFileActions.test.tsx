@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../../../components/ui/ToastProvider";
 import { FilesPage } from "../../../pages/FilesPage";
 import { ApiError } from "../api/api-error";
@@ -10,6 +10,9 @@ import { createMockFilesRepository } from "../api/files-mock-repository";
 import type { FilesRepository } from "../api/files-repository";
 import { normalFileFixtures } from "../api/files.fixtures";
 import type { DownloadResult, ShareResult } from "../model/file.types";
+
+const attachmentUrl = 'https://example.invalid/download?response-content-disposition=attachment%3B%20filename%3D%22notes.txt%22&response-content-type=application%2Foctet-stream&X-Amz-Signature=example';
+beforeEach(() => { vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {}); });
 
 const firstFile = normalFileFixtures[0]!;
 const secondFile = normalFileFixtures[1]!;
@@ -38,7 +41,7 @@ afterEach(() => {
 });
 
 describe("file actions", () => {
-  it("prepares a fresh link per action without opening a blank tab or claiming a saved file", async () => {
+  it("does not turn Download into viewing when the backend returns an inline link", async () => {
     const base = createMockFilesRepository();
     let issued = 0;
     const getDownload = vi.fn(async (id: string) => ({
@@ -50,17 +53,18 @@ describe("file actions", () => {
 
     const button = await screen.findByRole("button", { name: `Download ${firstFile.originalName}` });
     fireEvent.click(button);
-    expect(await screen.findByRole("link", { name: "Open file" })).toHaveAttribute("href", "https://example.invalid/download/1");
-    expect(screen.getByText(/use your browser’s save or download option/)).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Direct download is not available");
+    expect(screen.queryByRole("link", { name: "Open file" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Download started/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
     fireEvent.click(button);
-    expect(await screen.findByRole("link", { name: "Open file" })).toHaveAttribute("href", "https://example.invalid/download/2");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Direct download is not available");
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
     expect(getDownload).toHaveBeenCalledTimes(2);
   });
 
-  it("offers a filename-preserving save action when the backend signs an attachment", async () => {
+  it("starts a filename-preserving download automatically from the initial click", async () => {
     const base = createMockFilesRepository();
     const url = 'https://example.invalid/download?response-content-disposition=attachment%3B%20filename%3D%22notes.txt%22&response-content-type=application%2Foctet-stream&X-Amz-Signature=example';
     renderActions({ ...base, getDownload: async (id) => ({ ...await base.getDownload(id), downloadUrl: url }) });
@@ -71,16 +75,22 @@ describe("file actions", () => {
     expect(save).toHaveAttribute("download", firstFile.originalName);
     expect(save).toHaveAttribute("rel", "noopener noreferrer");
     expect(save).toHaveAttribute("target", "_self");
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledOnce();
+    const automatic = vi.mocked(HTMLAnchorElement.prototype.click).mock.contexts[0] as HTMLAnchorElement;
+    expect(automatic.href).toBe(url);
+    expect(automatic.download).toBe(firstFile.originalName);
+    expect(automatic.referrerPolicy).toBe("no-referrer");
   });
 
-  it("uses the safe fallback when an attachment link can still be displayed inline", async () => {
+  it("rejects attachment links that lack binary delivery", async () => {
     const base = createMockFilesRepository();
     renderActions({ ...base, getDownload: async (id) => ({
       ...await base.getDownload(id),
       downloadUrl: "https://example.invalid/download?response-content-disposition=attachment",
     }) });
     fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
-    expect(await screen.findByRole("link", { name: "Open file" })).toHaveAttribute("target", "_blank");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Direct download is not available");
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
     expect(screen.queryByRole("link", { name: "Save file" })).not.toBeInTheDocument();
   });
 
@@ -130,26 +140,40 @@ describe("file actions", () => {
 
   it("retries a failed download request with a new link", async () => {
     const base = createMockFilesRepository();
-    const getDownload = vi.fn((id: string) => base.getDownload(id))
+    const getDownload = vi.fn(async (id: string) => ({ ...await base.getDownload(id), downloadUrl: attachmentUrl }))
       .mockRejectedValueOnce(new ApiError({ message: "Unavailable", code: "DOWNLOAD_FAILED", status: 500, retryable: true }));
     renderActions({ ...base, getDownload });
     fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The download link could not be created.");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByRole("link", { name: "Open file" })).toHaveAttribute("href", `https://example.invalid/download/${firstFile.id}`);
+    expect(await screen.findByRole("link", { name: "Save file" })).toHaveAttribute("href", attachmentUrl);
     expect(getDownload).toHaveBeenCalledTimes(2);
   });
 
   it("removes expired download links and can request a fresh one", async () => {
     const base = createMockFilesRepository();
-    const getDownload = vi.fn(async (id: string) => ({ ...await base.getDownload(id), expiresIn: 0.1 }));
+    const getDownload = vi.fn(async (id: string) => ({ ...await base.getDownload(id), downloadUrl: attachmentUrl, expiresIn: 0.1 }));
     renderActions({ ...base, getDownload });
     fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
-    expect(await screen.findByRole("link", { name: "Open file" })).toBeVisible();
-    expect(await screen.findByRole("alert")).toHaveTextContent("This download link has expired.");
-    expect(screen.queryByRole("link", { name: "Open file" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Save file" })).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("This file link has expired.");
+    expect(screen.queryByRole("link", { name: "Save file" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(getDownload).toHaveBeenCalledTimes(2));
+  });
+
+  it("uses View to preview an image without initiating a download", async () => {
+    const base = createMockFilesRepository();
+    const getDownload = vi.fn((id: string) => base.getDownload(id));
+    renderActions({ ...base, getDownload });
+    fireEvent.click(await screen.findByRole("button", { name: `View ${secondFile.originalName}` }));
+    const image = await screen.findByRole("img", { name: secondFile.originalName });
+    expect(image).toHaveAttribute("src", `https://example.invalid/download/${secondFile.id}`);
+    expect(screen.getByRole("dialog", { name: "View file" })).toBeVisible();
+    expect(getDownload).toHaveBeenCalledWith(secondFile.id, "inline");
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+    fireEvent.error(image);
+    expect(await screen.findByRole("alert")).toHaveTextContent("The preview could not be loaded");
   });
 
   it("waits for the user to choose an expiry before creating a link", async () => {
