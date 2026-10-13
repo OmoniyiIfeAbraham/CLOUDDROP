@@ -48,7 +48,11 @@ export const downloadFile = async (
       return;
     }
 
-    const downloadUrl = await generateDownloadUrl(file.s3Key);
+    const downloadUrl = await generateDownloadUrl(
+      file.s3Key,
+      600,
+      file.originalName,
+    );
 
     res.status(200).json({
       success: true,
