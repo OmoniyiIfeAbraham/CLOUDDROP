@@ -176,6 +176,15 @@ describe("file actions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The preview could not be loaded");
   });
 
+  it("does not navigate to unsupported previews such as CSV", async () => {
+    const csv = { ...firstFile, mimeType: "text/csv", originalName: "records.csv" };
+    renderActions(createMockFilesRepository({ files: [csv] }));
+    fireEvent.click(await screen.findByRole("button", { name: "View records.csv" }));
+    expect(await screen.findByText(/A browser preview is not available/)).toBeVisible();
+    expect(document.querySelector("iframe")).toBeNull();
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
   it("waits for the user to choose an expiry before creating a link", async () => {
     const base = createMockFilesRepository();
     const getTemporaryShare = vi.fn((id: string, ttlHours?: number) => base.getTemporaryShare(id, ttlHours));
