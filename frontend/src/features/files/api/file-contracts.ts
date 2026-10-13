@@ -38,6 +38,7 @@ const shareResultSchema = z.object({
   file: fileRecordSchema.pick({ id: true, originalName: true, mimeType: true }),
   shareUrl: z.string(),
   expiresIn: z.number().positive(),
+  expiresAt: z.iso.datetime().optional(),
 });
 
 const invalidResponse = (): ApiError => new ApiError({

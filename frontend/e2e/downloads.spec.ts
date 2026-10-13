@@ -11,6 +11,19 @@ import { expect, test, type Page } from "@playwright/test";
 
 const filename = "Résumé notes (final).txt";
 const content = "CloudDrop browser download verification.\n";
+const pdfStream = "BT /F1 12 Tf 30 100 Td (CloudDrop PDF preview check) Tj ET";
+const pdfObjects = [
+  "<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+  "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+  "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", `<< /Length ${pdfStream.length} >>\nstream\n${pdfStream}\nendstream`,
+];
+let pdfDocument = "%PDF-1.4\n";
+const pdfOffsets = [0];
+for (const [index, object] of pdfObjects.entries()) {
+  pdfOffsets.push(pdfDocument.length); pdfDocument += `${index + 1} 0 obj\n${object}\nendobj\n`;
+}
+const pdfXref = pdfDocument.length;
+pdfDocument += `xref\n0 6\n0000000000 65535 f \n${pdfOffsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${pdfXref}\n%%EOF\n`;
 const file = {
   id: "download-file-1", originalName: filename, mimeType: "text/plain",
   size: Buffer.byteLength(content), category: "Documents",
@@ -40,6 +53,8 @@ test.beforeAll(async () => {
     if (url.pathname === "/image.png") {
       response.setHeader("Content-Type", "image/png");
       response.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=", "base64"));
+    } else if (url.pathname === "/document.pdf") {
+      response.setHeader("Content-Type", "application/pdf"); response.end(pdfDocument);
     } else response.end(content);
   });
   await new Promise<void>((resolve) => storage.listen(0, "127.0.0.1", resolve));
@@ -52,16 +67,16 @@ test.afterAll(async () => {
 });
 
 const installFixtures = async (page: Page, options: {
-  image?: boolean; attachment?: boolean; failFirst?: boolean; gate?: Promise<void>; expiresIn?: number;
+  image?: boolean; pdf?: boolean; attachment?: boolean; failFirst?: boolean; gate?: Promise<void>; expiresIn?: number;
 } = {}) => {
   let requested = 0;
   storageRequests.length = 0;
+  const record = options.image ? { ...file, mimeType: "image/png", category: "Images" } : options.pdf ? { ...file, mimeType: "application/pdf", originalName: "preview.pdf", size: Buffer.byteLength(pdfDocument) } : file;
   await page.addInitScript(() => {
     if (location.origin === "http://127.0.0.1:4176") sessionStorage.setItem("clouddrop.access-token", "browser-fixture-session");
   });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const record = options.image ? { ...file, mimeType: "image/png", category: "Images" } : file;
     let data: unknown;
     if (path.endsWith("/auth/me")) {
       data = { user: { id: "fixture-user", firstName: "Ada", lastName: "Lovelace", email: "fixture@example.test" } };
@@ -72,7 +87,7 @@ const installFixtures = async (page: Page, options: {
         await route.fulfill({ status: 500, json: { success: false, message: "Unavailable", error: { code: "DOWNLOAD_FAILED" } } });
         return;
       }
-      const url = new URL(options.image ? "/image.png" : "/object.txt", storageOrigin);
+      const url = new URL(options.image ? "/image.png" : options.pdf ? "/document.pdf" : "/object.txt", storageOrigin);
       url.searchParams.set("X-Amz-Signature", `fixture-${requested}`);
       if (options.attachment) {
         url.searchParams.set("response-content-disposition", disposition);
@@ -89,7 +104,7 @@ const installFixtures = async (page: Page, options: {
     await route.fulfill({ json: { success: true, message: "Fixture request succeeded", data } });
   });
   await page.goto("/files");
-  await expect(page.getByRole("link", { name: filename, exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: record.originalName, exact: true })).toBeVisible();
   return { requests: () => requested, storageRequests };
 };
 
@@ -128,6 +143,7 @@ test("Download refuses inline links and View opens a separate preview", async ({
   await page.screenshot({ path: testInfo.outputPath("view-preview-320.png"), fullPage: true });
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "View file" })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: `Download ${filename}`, exact: true })).toBeFocused();
   expect(page.context().pages()).toHaveLength(1);
 });
 
@@ -163,15 +179,42 @@ test("cancelled preparation ignores a late response", async ({ page }, testInfo)
 });
 
 test("failed requests retry and expired links are renewed", async ({ page }, testInfo) => {
-  const fixtures = await installFixtures(page, { attachment: true, failFirst: true, expiresIn: 0.5 });
+  await page.clock.install();
+  const fixtures = await installFixtures(page, { attachment: true, failFirst: true, expiresIn: 30 });
   await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("The download link could not be created.");
   await page.screenshot({ path: testInfo.outputPath("download-error.png"), fullPage: true });
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("link", { name: "Save file" })).toBeVisible();
+  await page.clock.fastForward(31_000);
   await expect(page.getByRole("alert")).toContainText("This file link has expired.");
   await expect(page.getByRole("link", { name: "Save file" })).toHaveCount(0);
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("link", { name: "Save file" })).toHaveAttribute("href", /fixture-3/);
   expect(fixtures.requests()).toBe(3);
+});
+
+
+test("file dialogs restore an invoker that was not focused during activation", async ({ page }) => {
+  await installFixtures(page);
+  const trigger = page.getByRole("button", { name: `Share ${filename}`, exact: true });
+  // Some browsers do not focus a button on pointer activation. Programmatic
+  // activation exercises that same missing-native-focus case deterministically.
+  await trigger.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(page.getByRole("dialog", { name: "Share file" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+});
+
+
+test("View avoids PDF navigation when the browser has no inline PDF viewer", async ({ page }) => {
+  const fixtures = await installFixtures(page, { pdf: true });
+  await page.evaluate(() => Object.defineProperty(navigator, "pdfViewerEnabled", { value: false, configurable: true }));
+  const downloads: string[] = [];
+  page.on("download", (download) => downloads.push(download.suggestedFilename()));
+  await page.getByRole("button", { name: "View preview.pdf", exact: true }).click();
+  await expect(page.getByText("A browser preview is not available for this file type. Download the file to open it on your device.")).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
+  expect(fixtures.storageRequests).toHaveLength(0);
+  expect(downloads).toEqual([]);
 });

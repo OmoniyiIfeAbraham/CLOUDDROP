@@ -4,9 +4,9 @@ Updated October 13, 2026. Owner action: backend download endpoint, then Samuel's
 
 The frontend now offers separate **View** and **Download** actions on the dashboard, file library and file details page. View opens a preview dialog for supported images, video, audio, PDF and text. Download prepares a fresh link and automatically initiates saving from the first click when the link signs attachment and binary delivery. Save file remains a manual fallback if the browser blocks an automatic download. Inline links returned to Download are rejected with clear feedback; they never silently become a viewing tab.
 
-The frontend sends `GET /api/v1/files/:id/download?disposition=attachment` for Download and `?disposition=inline` for View. Both requests use the existing response shape (`file`, `downloadUrl`, `expiresIn`). The current backend ignores this query and returns inline links, so production downloads remain blocked until the backend handoff is implemented. View remains compatible with the current links.
+The frontend sends `GET /api/v1/files/:id/download?disposition=attachment` for Download and `?disposition=inline` for View. Both requests use the existing response shape (`file`, `downloadUrl`, `expiresIn`). The merged main backend signs attachment/binary delivery with the stored original filename, but still ignores this query. It needs inline delivery support for View. Production checked on October 13 still returns plain inline links without these overrides, so deploying the merged download fix also remains necessary. Source implementation and deployment acceptance are separate gates.
 
-Production currently signs a plain `GetObjectCommand`. Browser-displayable files open inline. The S3 bucket returned `CORSResponse: CORS is not enabled for this bucket` during the October 12 check. An HTML `download` attribute cannot force saving from a cross-origin S3 URL. [MDN documents that restriction](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download).
+The production response observed on October 13 signs a plain `GetObjectCommand`. Browser-displayable files open inline. The S3 bucket returned `CORSResponse: CORS is not enabled for this bucket` during the October 12 check. An HTML `download` attribute cannot force saving from a cross-origin S3 URL. [MDN documents that restriction](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download).
 
 ## Backend change to implement
 
@@ -24,6 +24,10 @@ Build the disposition header with a standards-compliant library that handles quo
 Set the override **before signing**. Appending it to an existing URL invalidates the signature. S3 includes `response-content-disposition=attachment...` in the signed URL and sends the corresponding response header. [AWS documents the authenticated header override](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html).
 
 Keep the existing ownership check, 600-second expiry, and response envelope. Binary delivery avoids inline previews in WebKit as well as Chromium. The stored file MIME type and API metadata remain unchanged: this override applies only to the signed download response. This navigation approach does not require bucket CORS or JavaScript access to the bytes. Sharing retains its current behavior.
+
+## Confirmed Unicode upload issue
+
+A real production upload on October 13 stored `Résumé notes (final).txt` as `RÃ©sumÃ© notes (final).txt`. This is a multipart filename decoding/metadata issue before download, independent of the Windows WebKit fallback reported in the audit. Eunice should preserve UTF-8 upload names before storage-key and metadata creation, and verify actual browser multipart uploads. Correct attachment headers cannot recover an already corrupted name. The frontend should continue using the server's canonical original name; it must not silently rewrite metadata in the UI.
 
 ## Acceptance after deployment
 

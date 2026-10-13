@@ -9,7 +9,16 @@ describe("formatDuration", () => {
     expect(formatDuration(604_800)).toBe("7 days");
   });
 
-  it("rounds a link that is about to expire up to one hour", () => {
-    expect(formatDuration(90)).toBe("1 hour");
+  it("uses seconds or minutes for a short remaining lifetime", () => {
+    expect(formatDuration(1)).toBe("1 second");
+    expect(formatDuration(59.9)).toBe("1 minute");
+    expect(formatDuration(90)).toBe("2 minutes");
+    expect(formatDuration(180)).toBe("3 minutes");
+  });
+
+  it("keeps selected sharing durations readable near their creation boundary", () => {
+    expect(formatDuration(3599)).toBe("1 hour");
+    expect(formatDuration(86399)).toBe("1 day");
+    expect(formatDuration(604799)).toBe("7 days");
   });
 });

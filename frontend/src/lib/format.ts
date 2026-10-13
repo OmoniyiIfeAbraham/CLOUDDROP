@@ -9,7 +9,13 @@ export const formatBytes = (size: number): string => {
 };
 
 export const formatDuration = (seconds: number): string => {
-  const hours = Math.max(1, Math.round(seconds / 3600));
+  const remaining = Math.max(1, Math.ceil(seconds));
+  if (remaining < 60) return `${remaining} ${remaining === 1 ? "second" : "seconds"}`;
+  if (remaining < 3540) {
+    const minutes = Math.ceil(remaining / 60);
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  }
+  const hours = Math.max(1, Math.round(remaining / 3600));
   if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
   const days = Math.round(hours / 24);
   return `${days} ${days === 1 ? "day" : "days"}`;

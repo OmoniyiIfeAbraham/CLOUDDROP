@@ -1,0 +1,475 @@
+run,browser,check,expected,status,actual
+deployed,desktop-chromium,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791890827049-45ecf27d-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791890827049-45ecf27d-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791890827049-45ecf27d-Résumé notes (final).txt: Documents')
+"
+deployed,desktop-chromium,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+deployed,desktop-chromium,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+deployed,desktop-chromium,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-chromium,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-chromium,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-chromium,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-chromium,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+deployed,desktop-chromium,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,desktop-chromium,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,desktop-chromium,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,FAIL,"Error: expect(locator).toBeFocused() failed
+
+Locator: getByRole('button', { name: 'Close dialog' })
+Expected: focused
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeFocused"" getByRole('button', { name: 'Close dialog' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'Close dialog' })
+"
+deployed,desktop-chromium,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+deployed,desktop-chromium,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+deployed,desktop-chromium,1 hour sharing response,The backend reports the selected lifetime and the UI shows it,PASS,Matched expected result
+deployed,desktop-chromium,1 hour short-link resolution,An anonymous HTTPS CloudDrop /s/token link returns the uploaded content,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""[URL redacted]""
+Received: ""[URL redacted]"""
+deployed,desktop-chromium,1 day sharing response,The backend reports the selected lifetime and the UI shows it,PASS,Matched expected result
+deployed,desktop-chromium,1 day short-link resolution,An anonymous HTTPS CloudDrop /s/token link returns the uploaded content,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""[URL redacted]""
+Received: ""[URL redacted]"""
+deployed,desktop-chromium,7 days sharing response,The backend reports the selected lifetime and the UI shows it,PASS,Matched expected result
+deployed,desktop-chromium,7 days short-link resolution,An anonymous HTTPS CloudDrop /s/token link returns the uploaded content,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""[URL redacted]""
+Received: ""[URL redacted]"""
+deployed,mobile-chromium,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791891085490-a603f121-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791891085490-a603f121-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791891085490-a603f121-Résumé notes (final).txt: Documents')
+"
+deployed,mobile-chromium,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+deployed,mobile-chromium,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+deployed,mobile-chromium,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-chromium,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-chromium,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-chromium,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-chromium,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+deployed,mobile-chromium,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,mobile-chromium,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,mobile-chromium,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,FAIL,"Error: expect(locator).toBeFocused() failed
+
+Locator: getByRole('button', { name: 'Close dialog' })
+Expected: focused
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeFocused"" getByRole('button', { name: 'Close dialog' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'Close dialog' })
+"
+deployed,mobile-chromium,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+deployed,mobile-chromium,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+deployed,desktop-webkit,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791891383931-cab13e30-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791891383931-cab13e30-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791891383931-cab13e30-Résumé notes (final).txt: Documents')
+"
+deployed,desktop-webkit,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+deployed,desktop-webkit,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+deployed,desktop-webkit,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-webkit,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-webkit,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-webkit,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,desktop-webkit,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+deployed,desktop-webkit,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,desktop-webkit,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,desktop-webkit,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,FAIL,"Error: expect(locator).toBeFocused() failed
+
+Locator: getByRole('button', { name: 'Close dialog' })
+Expected: focused
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeFocused"" getByRole('button', { name: 'Close dialog' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'Close dialog' })
+"
+deployed,desktop-webkit,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+deployed,desktop-webkit,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+deployed,mobile-webkit,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791891642283-a8fad797-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791891642283-a8fad797-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791891642283-a8fad797-Résumé notes (final).txt: Documents')
+"
+deployed,mobile-webkit,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+deployed,mobile-webkit,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+deployed,mobile-webkit,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-webkit,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-webkit,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-webkit,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+deployed,mobile-webkit,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+deployed,mobile-webkit,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,mobile-webkit,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+deployed,mobile-webkit,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,FAIL,"Error: expect(locator).toBeFocused() failed
+
+Locator: getByRole('button', { name: 'Close dialog' })
+Expected: focused
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeFocused"" getByRole('button', { name: 'Close dialog' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'Close dialog' })
+"
+deployed,mobile-webkit,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+deployed,mobile-webkit,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+deployed-followup,desktop-chromium,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791891896250-d38e48de-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791891896250-d38e48de-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791891896250-d38e48de-Résumé notes (final).txt: Documents')
+"
+deployed-followup,desktop-chromium,Completed upload feedback,The completed queue shows All files uploaded,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'All files uploaded' })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'All files uploaded' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'All files uploaded' })
+"
+deployed-followup,desktop-chromium,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791891896250-d38e48de-Résumé notes (final).txt""
+Received: ""qa-1791891896250-d38e48de-RÃ©sumÃ© notes (final).txt"""
+deployed-followup,desktop-chromium,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+deployed-followup,desktop-chromium,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+deployed-followup,desktop-chromium,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+deployed-followup,desktop-chromium,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+deployed-followup,desktop-chromium,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+deployed-followup,desktop-chromium,Separate View,A supported plain-text file opens in the preview dialog without a download,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'View qa-1791891896250-d38e48de-RÃ©sumÃ© notes (final).txt', exact: true })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'View qa-1791891896250-d38e48de-RÃ©sumÃ© notes (final).txt', exact: true }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'View qa-1791891896250-d38e48de-RÃ©sumÃ© notes (final).txt', exact: true })
+"
+deployed-followup,desktop-chromium,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+deployed-followup,desktop-chromium,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+deployed-followup,mobile-chromium,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791891967330-67685ad5-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791891967330-67685ad5-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791891967330-67685ad5-Résumé notes (final).txt: Documents')
+"
+deployed-followup,mobile-chromium,Completed upload feedback,The completed queue shows All files uploaded,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'All files uploaded' })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'All files uploaded' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'All files uploaded' })
+"
+deployed-followup,mobile-chromium,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791891967330-67685ad5-Résumé notes (final).txt""
+Received: ""qa-1791891967330-67685ad5-RÃ©sumÃ© notes (final).txt"""
+deployed-followup,mobile-chromium,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+deployed-followup,mobile-chromium,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+deployed-followup,mobile-chromium,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+deployed-followup,mobile-chromium,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+deployed-followup,mobile-chromium,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+deployed-followup,mobile-chromium,Separate View,A supported plain-text file opens in the preview dialog without a download,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'View qa-1791891967330-67685ad5-RÃ©sumÃ© notes (final).txt', exact: true })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'View qa-1791891967330-67685ad5-RÃ©sumÃ© notes (final).txt', exact: true }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'View qa-1791891967330-67685ad5-RÃ©sumÃ© notes (final).txt', exact: true })
+"
+deployed-followup,mobile-chromium,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+deployed-followup,mobile-chromium,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+deployed-followup,desktop-webkit,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791892046990-e70702d1-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791892046990-e70702d1-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791892046990-e70702d1-Résumé notes (final).txt: Documents')
+"
+deployed-followup,desktop-webkit,Completed upload feedback,The completed queue shows All files uploaded,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'All files uploaded' })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'All files uploaded' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'All files uploaded' })
+"
+deployed-followup,desktop-webkit,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791892046990-e70702d1-Résumé notes (final).txt""
+Received: ""qa-1791892046990-e70702d1-RÃ©sumÃ© notes (final).txt"""
+deployed-followup,desktop-webkit,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+deployed-followup,desktop-webkit,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+deployed-followup,desktop-webkit,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+deployed-followup,desktop-webkit,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+deployed-followup,desktop-webkit,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+deployed-followup,desktop-webkit,Separate View,A supported plain-text file opens in the preview dialog without a download,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'View qa-1791892046990-e70702d1-RÃ©sumÃ© notes (final).txt', exact: true })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'View qa-1791892046990-e70702d1-RÃ©sumÃ© notes (final).txt', exact: true }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'View qa-1791892046990-e70702d1-RÃ©sumÃ© notes (final).txt', exact: true })
+"
+deployed-followup,desktop-webkit,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+deployed-followup,desktop-webkit,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+deployed-followup,mobile-webkit,Automatic categories,Documents/Images are read-only and cannot be overridden,FAIL,"Error: expect(locator).toHaveText(expected) failed
+
+Locator: getByLabel('Category for qa-1791892223658-814b469a-Résumé notes (final).txt: Documents')
+Expected: ""Documents""
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toHaveText"" getByLabel('Category for qa-1791892223658-814b469a-Résumé notes (final).txt: Documents') with timeout 10000ms
+  - waiting for getByLabel('Category for qa-1791892223658-814b469a-Résumé notes (final).txt: Documents')
+"
+deployed-followup,mobile-webkit,Completed upload feedback,The completed queue shows All files uploaded,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'All files uploaded' })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'All files uploaded' }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'All files uploaded' })
+"
+deployed-followup,mobile-webkit,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791892223658-814b469a-Résumé notes (final).txt""
+Received: ""qa-1791892223658-814b469a-RÃ©sumÃ© notes (final).txt"""
+deployed-followup,mobile-webkit,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+deployed-followup,mobile-webkit,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+deployed-followup,mobile-webkit,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+deployed-followup,mobile-webkit,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+deployed-followup,mobile-webkit,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+deployed-followup,mobile-webkit,Separate View,A supported plain-text file opens in the preview dialog without a download,FAIL,"Error: expect(locator).toBeVisible() failed
+
+Locator: getByRole('button', { name: 'View qa-1791892223658-814b469a-RÃ©sumÃ© notes (final).txt', exact: true })
+Expected: visible
+Timeout: 10000ms
+Error: element(s) not found
+
+Call log:
+  - Expect ""toBeVisible"" getByRole('button', { name: 'View qa-1791892223658-814b469a-RÃ©sumÃ© notes (final).txt', exact: true }) with timeout 10000ms
+  - waiting for getByRole('button', { name: 'View qa-1791892223658-814b469a-RÃ©sumÃ© notes (final).txt', exact: true })
+"
+deployed-followup,mobile-webkit,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+deployed-followup,mobile-webkit,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+source,desktop-chromium,Automatic categories,Documents/Images are read-only and cannot be overridden,PASS,Matched expected result
+source,desktop-chromium,Completed upload feedback,The completed queue shows All files uploaded,PASS,Matched expected result
+source,desktop-chromium,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791892937307-ec9a7e88-Résumé notes (final).txt""
+Received: ""qa-1791892937307-ec9a7e88-RÃ©sumÃ© notes (final).txt"""
+source,desktop-chromium,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+source,desktop-chromium,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+source,desktop-chromium,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+source,desktop-chromium,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+source,desktop-chromium,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+source,desktop-chromium,Separate View,A supported plain-text file opens in the preview dialog without a download,PASS,Matched expected result
+source,desktop-chromium,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+source,desktop-chromium,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+source,desktop-chromium,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+source,desktop-chromium,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+source,desktop-chromium,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-chromium,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-chromium,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-chromium,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-chromium,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+source,desktop-chromium,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,desktop-chromium,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,desktop-chromium,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,desktop-chromium,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+source,desktop-chromium,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+source,desktop-chromium,1 hour sharing response,The backend reports the selected lifetime and the UI shows it,PASS,Matched expected result
+source,desktop-chromium,1 hour short-link resolution,An anonymous HTTPS CloudDrop /s/token link returns the uploaded content,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""[URL redacted]""
+Received: ""[URL redacted]"""
+source,desktop-chromium,1 day sharing response,The backend reports the selected lifetime and the UI shows it,PASS,Matched expected result
+source,desktop-chromium,1 day short-link resolution,An anonymous HTTPS CloudDrop /s/token link returns the uploaded content,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""[URL redacted]""
+Received: ""[URL redacted]"""
+source,desktop-chromium,7 days sharing response,The backend reports the selected lifetime and the UI shows it,PASS,Matched expected result
+source,desktop-chromium,7 days short-link resolution,An anonymous HTTPS CloudDrop /s/token link returns the uploaded content,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""[URL redacted]""
+Received: ""[URL redacted]"""
+source,mobile-chromium,Automatic categories,Documents/Images are read-only and cannot be overridden,PASS,Matched expected result
+source,mobile-chromium,Completed upload feedback,The completed queue shows All files uploaded,PASS,Matched expected result
+source,mobile-chromium,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791893224128-24c93ca8-Résumé notes (final).txt""
+Received: ""qa-1791893224128-24c93ca8-RÃ©sumÃ© notes (final).txt"""
+source,mobile-chromium,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+source,mobile-chromium,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+source,mobile-chromium,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+source,mobile-chromium,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+source,mobile-chromium,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+source,mobile-chromium,Separate View,A supported plain-text file opens in the preview dialog without a download,PASS,Matched expected result
+source,mobile-chromium,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+source,mobile-chromium,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+source,mobile-chromium,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+source,mobile-chromium,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+source,mobile-chromium,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-chromium,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-chromium,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-chromium,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-chromium,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+source,mobile-chromium,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,mobile-chromium,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,mobile-chromium,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,mobile-chromium,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+source,mobile-chromium,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+source,desktop-webkit,Automatic categories,Documents/Images are read-only and cannot be overridden,PASS,Matched expected result
+source,desktop-webkit,Completed upload feedback,The completed queue shows All files uploaded,PASS,Matched expected result
+source,desktop-webkit,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791893355995-ff023f97-Résumé notes (final).txt""
+Received: ""qa-1791893355995-ff023f97-RÃ©sumÃ© notes (final).txt"""
+source,desktop-webkit,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+source,desktop-webkit,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+source,desktop-webkit,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+source,desktop-webkit,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+source,desktop-webkit,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+source,desktop-webkit,Separate View,A supported plain-text file opens in the preview dialog without a download,PASS,Matched expected result
+source,desktop-webkit,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+source,desktop-webkit,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+source,desktop-webkit,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+source,desktop-webkit,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+source,desktop-webkit,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-webkit,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-webkit,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-webkit,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,desktop-webkit,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+source,desktop-webkit,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,desktop-webkit,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,desktop-webkit,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,desktop-webkit,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+source,desktop-webkit,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result
+source,mobile-webkit,Automatic categories,Documents/Images are read-only and cannot be overridden,PASS,Matched expected result
+source,mobile-webkit,Completed upload feedback,The completed queue shows All files uploaded,PASS,Matched expected result
+source,mobile-webkit,Stored Unicode filename,The API preserves the original uploaded filename,FAIL,"Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: ""qa-1791893536871-da9d70a1-Résumé notes (final).txt""
+Received: ""qa-1791893536871-da9d70a1-RÃ©sumÃ© notes (final).txt"""
+source,mobile-webkit,Dashboard statistics,"12 files, exact uploaded bytes, 11 Documents and 1 Image",PASS,Matched expected result
+source,mobile-webkit,Server pagination,Ten rows on page one and two rows on page two,PASS,Matched expected result
+source,mobile-webkit,Category filtering,The Images filter returns only the image and resets paging,PASS,Matched expected result
+source,mobile-webkit,Search and details,Search finds the uploaded document; details match persisted metadata,PASS,Matched expected result
+source,mobile-webkit,One-click browser download,Download saves the original Unicode filename and exact bytes without a viewing tab,FAIL,"Error: The first Download click must create a browser download event
+
+expect(received).not.toBeNull()
+
+Received: null"
+source,mobile-webkit,Separate View,A supported plain-text file opens in the preview dialog without a download,PASS,Matched expected result
+source,mobile-webkit,Sharing with anonymous retrieval,A 1-hour share link returns the uploaded bytes without a JWT,PASS,Matched expected result
+source,mobile-webkit,Deletion and refreshed library,Delete removes this QA file from the API and UI,PASS,Matched expected result
+source,mobile-webkit,Form validation accessibility,Invalid input has readable feedback and no axe violations,PASS,Matched expected result
+source,mobile-webkit,Workspace accessibility,The populated live file library has no axe violations,PASS,Matched expected result
+source,mobile-webkit,Responsive library at 320px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-webkit,Responsive library at 390px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-webkit,Responsive library at 768px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-webkit,Responsive library at 1440px,No horizontal document overflow; file actions stay reachable,PASS,Matched expected result
+source,mobile-webkit,Mobile navigation focus,Escape closes navigation and returns focus to its opener,PASS,Matched expected result
+source,mobile-webkit,Share dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,mobile-webkit,Delete dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,mobile-webkit,Download dialog focus restoration,Escape closes the dialog and restores focus to the invoking button,PASS,Matched expected result
+source,mobile-webkit,Reduced motion and upload validation,Unsupported files show a clear error; the upload page fits at 320px,PASS,Matched expected result
+source,mobile-webkit,Missing file error state,A missing UUID displays File unavailable with a recovery action,PASS,Matched expected result

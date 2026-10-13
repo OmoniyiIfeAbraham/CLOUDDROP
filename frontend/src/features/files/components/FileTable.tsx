@@ -5,10 +5,10 @@ import { formatBytes, formatDate } from "../../../lib/format";
 
 interface FileTableProps {
   files: FileRecord[];
-  onView: (file: FileRecord) => void;
-  onDownload: (file: FileRecord) => void;
-  onShare: (file: FileRecord) => void;
-  onDelete: (file: FileRecord) => void;
+  onView: (file: FileRecord, trigger: HTMLButtonElement) => void;
+  onDownload: (file: FileRecord, trigger: HTMLButtonElement) => void;
+  onShare: (file: FileRecord, trigger: HTMLButtonElement) => void;
+  onDelete: (file: FileRecord, trigger: HTMLButtonElement) => void;
   busyFileId?: string | null;
   compact?: boolean;
 }
@@ -52,10 +52,10 @@ export const FileTable = ({ files, onView, onDownload, onShare, onDelete, busyFi
             <td className="file-table__meta">{formatDate(file.createdAt)}</td>
             <td>
               <div className="file-actions">
-                <button type="button" className="icon-button" aria-label={`View ${file.originalName}`} title="View" disabled={busyFileId === file.id} onClick={() => onView(file)}><Eye size={17} /></button>
-                <button type="button" className="icon-button" aria-label={`Download ${file.originalName}`} title="Download" disabled={busyFileId === file.id} onClick={() => onDownload(file)}><Download size={17} /></button>
-                <button type="button" className="icon-button" aria-label={`Share ${file.originalName}`} title="Share" disabled={busyFileId === file.id} onClick={() => onShare(file)}><Share2 size={17} /></button>
-                <button type="button" className="icon-button icon-button--danger" aria-label={`Delete ${file.originalName}`} title="Delete" disabled={busyFileId === file.id} onClick={() => onDelete(file)}><Trash2 size={17} /></button>
+                <button type="button" className="icon-button" aria-label={`View ${file.originalName}`} title="View" disabled={busyFileId === file.id} onClick={(event) => onView(file, event.currentTarget)}><Eye size={17} /></button>
+                <button type="button" className="icon-button" aria-label={`Download ${file.originalName}`} title="Download" disabled={busyFileId === file.id} onClick={(event) => onDownload(file, event.currentTarget)}><Download size={17} /></button>
+                <button type="button" className="icon-button" aria-label={`Share ${file.originalName}`} title="Share" disabled={busyFileId === file.id} onClick={(event) => onShare(file, event.currentTarget)}><Share2 size={17} /></button>
+                <button type="button" className="icon-button icon-button--danger" aria-label={`Delete ${file.originalName}`} title="Delete" disabled={busyFileId === file.id} onClick={(event) => onDelete(file, event.currentTarget)}><Trash2 size={17} /></button>
               </div>
             </td>
           </tr>
