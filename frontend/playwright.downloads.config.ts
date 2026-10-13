@@ -8,6 +8,8 @@ export default defineConfig({
   outputDir: "test-results-downloads",
   workers: 1,
   retries: 0,
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   use: {
     baseURL: "http://127.0.0.1:4176", trace: "retain-on-failure",
     // Only the fixture server uses a locally generated, disposable certificate.

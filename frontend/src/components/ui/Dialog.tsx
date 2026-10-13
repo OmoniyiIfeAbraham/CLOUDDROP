@@ -9,17 +9,28 @@ interface DialogProps {
   children: ReactNode;
   size?: "normal" | "wide";
   closeDisabled?: boolean;
+  returnFocusTo?: HTMLElement | null;
 }
 
-export const Dialog = ({ title, open, onClose, children, size = "normal", closeDisabled = false }: DialogProps) => {
+export const Dialog = ({ title, open, onClose, children, size = "normal", closeDisabled = false, returnFocusTo }: DialogProps) => {
   const ref = useRef<HTMLDialogElement>(null);
+  const invokingControl = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+    if (open && !dialog.open) {
+      invokingControl.current = returnFocusTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      dialog.showModal();
+    }
+    if (!open && dialog.open) {
+      dialog.close();
+      const target = invokingControl.current;
+      if (target?.isConnected && !target.matches(":disabled")) target.focus({ preventScroll: true });
+      else dialog.closest<HTMLElement>("main")?.focus({ preventScroll: true });
+      invokingControl.current = null;
+    }
+  }, [open, returnFocusTo]);
 
   return (
     <dialog ref={ref} className={`dialog dialog--${size}`} onClose={() => { if (open) onClose(); }} onCancel={(event) => { event.preventDefault(); if (!closeDisabled) onClose(); }} aria-label={title}>

@@ -7,3 +7,4 @@ test-results-downloads/
 *.tsbuildinfo
 .env.local
 .env.*.local
+test-results-live/

@@ -1,12 +1,7 @@
 import { expect, test } from "@playwright/test";
-import type { Page, TestInfo } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
-const capture = async (page: Page, testInfo: TestInfo, name: string) => {
-  const path = testInfo.outputPath(`${name}.png`);
-  await page.screenshot({ path, fullPage: true });
-  await testInfo.attach(name, { path, contentType: "image/png" });
-};
+import { capture } from "./live-helpers";
 
 const isApi = (url: string, path: RegExp) => path.test(new URL(url).pathname);
 
@@ -19,10 +14,12 @@ test("register, sign in, upload, list, download, share, and delete through the l
   const fileName = `live-flow-${Date.now()}-${testInfo.project.name}.txt`;
   const content = `CloudDrop live flow check ${new Date().toISOString()}`;
   let shareUrl = "";
+  let token = "";
   const openNavigation = async () => {
     if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
   };
 
+  try {
   await test.step("register", async () => {
     await page.goto("/register");
     await page.getByLabel("First name").fill("Ada");
@@ -31,7 +28,9 @@ test("register, sign in, upload, list, download, share, and delete through the l
     await page.getByLabel("Password", { exact: true }).fill(password);
     const registered = page.waitForResponse((response) => isApi(response.url(), /\/api\/v1\/auth\/register$/));
     await page.getByRole("button", { name: "Create account" }).click();
-    expect((await registered).status()).toBe(201);
+    const registration = await registered;
+    expect(registration.status()).toBe(201);
+    token = (await registration.json()).data.token;
     await expect(page.getByRole("heading", { name: /Good to see you, Ada/ })).toBeVisible();
     await capture(page, testInfo, "01-registered");
   });
@@ -83,10 +82,12 @@ test("register, sign in, upload, list, download, share, and delete through the l
 
   await test.step("download", async () => {
     const requested = page.waitForResponse((response) => isApi(response.url(), /\/api\/v1\/files\/[^/]+\/download$/));
-    const downloadEvent = page.waitForEvent("download");
+    const downloadEvent = page.waitForEvent("download", { timeout: 10_000 }).catch(() => null);
     await page.getByRole("button", { name: `Download ${fileName}` }).click();
     expect((await requested).status()).toBe(200);
     const download = await downloadEvent;
+    expect(download, "One Download click must start saving").not.toBeNull();
+    if (!download) return;
     expect(download.suggestedFilename()).toBe(fileName);
     const path = testInfo.outputPath(fileName);
     await download.saveAs(path);
@@ -121,4 +122,18 @@ test("register, sign in, upload, list, download, share, and delete through the l
     expect((await page.request.get(shareUrl)).status()).not.toBe(200);
     await capture(page, testInfo, "07-deleted");
   });
+  } finally {
+    // A later preview/download/sharing failure must not leave test files in S3.
+    if (token) {
+      const api = new URL("/api/v1/files", page.url()).toString();
+      const headers = { Authorization: `Bearer ${token}` };
+      const listed = await page.request.get(api + "?limit=100", { headers });
+      expect(listed.status(), "Disposable upload cleanup must be available").toBe(200);
+      const files: { id: string; originalName: string }[] = (await listed.json()).data.files;
+      for (const file of files.filter((file) => file.originalName === fileName)) {
+        expect((await page.request.delete(api + "/" + encodeURIComponent(file.id), { headers })).status()).toBe(200);
+      }
+      await testInfo.attach("cleanup", { body: JSON.stringify({ remainingOwnedUploads: 0 }), contentType: "application/json" });
+    }
+  }
 });

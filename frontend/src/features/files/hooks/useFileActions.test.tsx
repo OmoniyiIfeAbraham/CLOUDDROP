@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { formatDateTime } from "../../../lib/format";
 import { ToastProvider } from "../../../components/ui/ToastProvider";
 import { FilesPage } from "../../../pages/FilesPage";
 import { ApiError } from "../api/api-error";
@@ -200,6 +201,26 @@ describe("file actions", () => {
     expect(getTemporaryShare).toHaveBeenCalledWith(firstFile.id, 168);
     expect(screen.getByText(/Expires in 7 days, on /)).toBeVisible();
     expect(screen.queryByRole("radio", { name: "7 days" })).not.toBeInTheDocument();
+  });
+
+  it("preserves a short CloudDrop share URL and its backend expiry", async () => {
+    const base = createMockFilesRepository();
+    const shareUrl = "https://clouddrop-c8.duckdns.org/s/Ab7kP2xQ";
+    const expiresAt = new Date(Date.now() + 180_000).toISOString();
+    renderActions({ ...base, getTemporaryShare: async (id) => ({ ...await base.getTemporaryShare(id), shareUrl, expiresAt }) });
+    await openShare(firstFile);
+    expect(await screen.findByRole("textbox", { name: "Temporary link" })).toHaveValue(shareUrl);
+    expect(screen.getByRole("link", { name: "Open link" })).toHaveAttribute("href", shareUrl);
+    expect(screen.getByRole("link", { name: "Open link" })).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getByText(/Expires in 3 minutes/)).toHaveTextContent(formatDateTime(Date.parse(expiresAt)));
+  });
+
+  it("does not expose a link whose backend expiry has already passed", async () => {
+    const base = createMockFilesRepository();
+    renderActions({ ...base, getTemporaryShare: async (id) => ({ ...await base.getTemporaryShare(id), expiresIn: 86400, expiresAt: new Date(Date.now() - 1000).toISOString() }) });
+    await openShare(firstFile);
+    expect(await screen.findByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
+    expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
   });
 
   it("keeps a failed share open and can request a new link", async () => {

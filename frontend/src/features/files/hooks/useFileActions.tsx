@@ -33,6 +33,7 @@ export const useFileActions = () => {
   const [downloadExpiresAt, setDownloadExpiresAt] = useState<number | null>(null);
   const downloadRequestId = useRef(0);
   const activeDownload = useRef(false);
+  const [invokingControl, setInvokingControl] = useState<HTMLElement | null>(null);
   const activeDelete = useRef(false);
   const activeShare = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<FileRecord | null>(null);
@@ -69,8 +70,9 @@ export const useFileActions = () => {
     return () => window.clearTimeout(timer);
   }, [shareResult, shareExpiresAt]);
 
-  const openFile = async (file: FileRecord, action: "download" | "view") => {
+  const openFile = async (file: FileRecord, action: "download" | "view", trigger?: HTMLElement) => {
     if (activeDownload.current || activeDelete.current) return;
+    if (!downloadTarget) setInvokingControl(trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     activeDownload.current = true;
     const requestId = ++downloadRequestId.current;
     setFileAction(action);
@@ -109,8 +111,8 @@ export const useFileActions = () => {
     }
   };
 
-  const download = (file: FileRecord) => openFile(file, "download");
-  const view = (file: FileRecord) => openFile(file, "view");
+  const download = (file: FileRecord, trigger?: HTMLElement) => openFile(file, "download", trigger);
+  const view = (file: FileRecord, trigger?: HTMLElement) => openFile(file, "view", trigger);
 
   const closeDownload = () => {
     downloadRequestId.current += 1;
@@ -121,7 +123,8 @@ export const useFileActions = () => {
     setBusyFileId(null);
   };
 
-  const share = (file: FileRecord) => {
+  const share = (file: FileRecord, trigger?: HTMLElement) => {
+    setInvokingControl(trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     shareRequestId.current += 1;
     activeShare.current = false;
     setShareTarget(file);
@@ -146,8 +149,14 @@ export const useFileActions = () => {
       const result = await repository.getTemporaryShare(shareTarget.id, shareHours);
       const shareUrl = requireHttpsUrl(result.shareUrl);
       if (requestId === shareRequestId.current) {
-        setShareResult({ ...result, shareUrl });
-        setShareExpiresAt(Date.now() + result.expiresIn * 1000);
+        const receivedAt = Date.now();
+        const expiresAt = result.expiresAt ? Date.parse(result.expiresAt) : receivedAt + result.expiresIn * 1000;
+        if (expiresAt <= receivedAt) {
+          setShareError("This link has expired. Create a new one.");
+          return;
+        }
+        setShareResult({ ...result, shareUrl, expiresIn: (expiresAt - receivedAt) / 1000 });
+        setShareExpiresAt(expiresAt);
       }
     } catch (error) {
       if (requestId === shareRequestId.current) {
@@ -161,7 +170,8 @@ export const useFileActions = () => {
     }
   };
 
-  const requestDelete = (file: FileRecord) => {
+  const requestDelete = (file: FileRecord, trigger?: HTMLElement) => {
+    setInvokingControl(trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     setDeleteError("");
     setDeleteTarget(file);
   };
@@ -173,6 +183,7 @@ export const useFileActions = () => {
       setShareError("This link has expired. Create a new one.");
       return;
     }
+    if (shareExpiresAt) setShareResult({ ...shareResult, expiresIn: (shareExpiresAt - Date.now()) / 1000 });
     try {
       await navigator.clipboard.writeText(shareResult.shareUrl);
       setCopied(true);
@@ -205,7 +216,7 @@ export const useFileActions = () => {
 
   const dialogs = (
     <>
-      <Dialog title={fileAction === "view" ? "View file" : "Download file"} open={!!downloadTarget} onClose={closeDownload}>
+      <Dialog returnFocusTo={invokingControl} title={fileAction === "view" ? "View file" : "Download file"} open={!!downloadTarget} onClose={closeDownload}>
         <div className="dialog__body">
           <p className="dialog__intro"><strong>{downloadTarget?.originalName}</strong>{downloadTarget && <> <span aria-hidden="true">·</span> {formatBytes(downloadTarget.size)}</>}</p>
           {downloadLoading && <div className="inline-progress" role="status"><span className="spinner" aria-hidden="true" /> {fileAction === "view" ? "Preparing your preview..." : "Preparing your download..."}</div>}
@@ -227,7 +238,7 @@ export const useFileActions = () => {
           </div>
         </div>
       </Dialog>
-      <Dialog title="Share file" open={!!shareTarget} onClose={() => { shareRequestId.current += 1; activeShare.current = false; setShareTarget(null); setShareResult(null); }} >
+      <Dialog returnFocusTo={invokingControl} title="Share file" open={!!shareTarget} onClose={() => { shareRequestId.current += 1; activeShare.current = false; setShareTarget(null); setShareResult(null); }} >
         <div className="dialog__body">
           <p className="dialog__intro">Create a temporary link for <strong>{shareTarget?.originalName}</strong>. Anyone with the link can download the file until it expires.</p>
           {!shareResult && (
@@ -259,7 +270,7 @@ export const useFileActions = () => {
           )}
         </div>
       </Dialog>
-      <Dialog title="Delete file?" open={!!deleteTarget} closeDisabled={!!busyFileId} onClose={() => { if (!busyFileId) setDeleteTarget(null); }}>
+      <Dialog returnFocusTo={invokingControl} title="Delete file?" open={!!deleteTarget} closeDisabled={!!busyFileId} onClose={() => { if (!busyFileId) setDeleteTarget(null); }}>
         <div className="dialog__body">
           <p className="dialog__intro">Delete <strong>{deleteTarget?.originalName}</strong>? This removes the stored file and cannot be undone.</p>
           {deleteError && <div className="inline-alert" role="alert">{deleteError}</div>}

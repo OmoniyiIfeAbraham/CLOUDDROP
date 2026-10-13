@@ -31,6 +31,7 @@ export interface ShareResult {
   file: Pick<FileRecord, "id" | "mimeType" | "originalName">;
   shareUrl: string;
   expiresIn: number;
+  expiresAt?: string | undefined;
 }
 
 export interface FileListQuery {
