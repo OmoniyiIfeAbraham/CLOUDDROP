@@ -98,6 +98,11 @@ test("register, restore a session, and sign out", async ({ page, isMobile }) => 
   await page.getByLabel("Email address").fill("ada@example.com");
   await page.getByLabel("Password", { exact: true }).fill("securepass123");
   await page.getByRole("button", { name: "Create account" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verify your email" }),
+  ).toBeVisible();
+  await page.getByLabel("Verification code").fill("123456");
+  await page.getByRole("button", { name: "Verify email" }).click();
   await expect(page.getByRole("heading", { name: /Good to see you, Ada/ })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: /Good to see you, Ada/ })).toBeVisible();
@@ -125,6 +130,12 @@ test("demo accounts keep their file libraries separate", async ({ page, isMobile
   await page.getByLabel("Email address").fill("ada@example.com");
   await page.getByLabel("Password", { exact: true }).fill("securepass123");
   await page.getByRole("button", { name: "Create account" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verify your email" }),
+  ).toBeVisible();
+  await page.getByLabel("Verification code").fill("123456");
+  await page.getByRole("button", { name: "Verify email" }).click();
+  await expect(page.getByRole("heading", { name: /Good to see you, Ada/ })).toBeVisible();
   if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("link", { name: "My files" }).click();
   await expect(page.getByRole("heading", { name: "Your library is empty" })).toBeVisible();
