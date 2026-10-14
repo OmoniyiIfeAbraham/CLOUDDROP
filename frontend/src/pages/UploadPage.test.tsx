@@ -20,7 +20,16 @@ const signedInAs = (id: string): AuthContextValue => ({
   user: { id, firstName: "Ada", lastName: "Lovelace", email: `${id}@example.test` },
   status: "authenticated",
   login: async () => {},
-  register: async () => {},
+  verifyEmail: async () => {},
+  resendVerificationEmail: async () => {},
+  register: async () => ({
+    user: {
+      id: "test-user",
+      firstName: "Test",
+      lastName: "User",
+      email: "test@example.com",
+    },
+  }),
   logout: () => {},
   retryRestore: async () => {},
 });

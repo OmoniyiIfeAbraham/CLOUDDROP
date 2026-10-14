@@ -686,6 +686,11 @@ export const UserScalarFieldEnum = {
   lastName: 'lastName',
   email: 'email',
   passwordHash: 'passwordHash',
+  emailVerified: 'emailVerified',
+  emailVerificationCodeHash: 'emailVerificationCodeHash',
+  emailVerificationExpiresAt: 'emailVerificationExpiresAt',
+  emailVerificationSentAt: 'emailVerificationSentAt',
+  emailVerificationAttempts: 'emailVerificationAttempts',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -735,6 +740,14 @@ export const QueryMode = {
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
 
 
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
 
 /**
  * Field references
@@ -753,6 +766,13 @@ export type StringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 
  */
 export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String[]'>
     
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+
 
 
 /**

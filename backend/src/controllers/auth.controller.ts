@@ -1,8 +1,24 @@
 import type { Request, Response } from "express";
-import { registerUser, loginUser, getCurrentUser } from "../services/auth.service.js";
+import {
+  registerUser,
+  loginUser,
+  getCurrentUser,
+  verifyEmail as verifyEmailService,
+  resendVerificationEmail,
+} from "../services/auth.service.js";
+import { validateRequest } from "../utils/validation.utils.js";
+import {
+  registerSchema,
+  loginSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+} from "../utils/auth.validation.js";
 
 export const register = async (req: Request, res: Response) => {
-  const { firstName, lastName, email, password } = req.body;
+  const { firstName, lastName, email, password } = validateRequest(
+    registerSchema,
+    req.body,
+  );
 
   const result = await registerUser(
     firstName,
@@ -13,13 +29,18 @@ export const register = async (req: Request, res: Response) => {
 
   res.status(201).json({
     success: true,
-    message: "Registration successful",
-    data: result,
+    message: result.message,
+    data: {
+      user: result.user,
+    },
   });
 };
 
 export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password } = validateRequest(
+    loginSchema,
+    req.body,
+  );
 
   const result = await loginUser(email, password);
 
@@ -27,6 +48,41 @@ export const login = async (req: Request, res: Response) => {
     success: true,
     message: "Login successful",
     data: result,
+  });
+};
+
+export const verifyEmail = async (req: Request, res: Response) => {
+  const { email, code } = validateRequest(
+    verifyEmailSchema,
+    req.body,
+  );
+
+  const result = await verifyEmailService(email, code);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+    data: {
+      user: result.user,
+      token: result.token,
+    },
+  });
+};
+
+export const resendVerification = async (
+  req: Request,
+  res: Response,
+) => {
+  const { email } = validateRequest(
+    resendVerificationSchema,
+    req.body,
+  );
+
+  const result = await resendVerificationEmail(email);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
   });
 };
 

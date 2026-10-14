@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
+import { ZodError } from "zod";
 import { ApiError } from "../utils/api-error.js";
 
 export const errorMiddleware = (
@@ -24,6 +25,20 @@ export const errorMiddleware = (
       message: "Invalid file upload",
       error: {
         code: "INVALID_FILE_UPLOAD",
+      },
+    });
+  }
+
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid request data",
+      error: {
+        code: "VALIDATION_ERROR",
+        details: err.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
       },
     });
   }

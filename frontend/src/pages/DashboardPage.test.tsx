@@ -22,7 +22,16 @@ const renderDashboard = (repository: FilesRepository) => {
           user: { id: "user-one", firstName: "Ada", lastName: "Lovelace", email: "ada@example.com" },
           status: "authenticated",
           login: async () => {},
-          register: async () => {},
+          verifyEmail: async () => {},
+          resendVerificationEmail: async () => {},
+          register: async () => ({
+    user: {
+      id: "test-user",
+      firstName: "Test",
+      lastName: "User",
+      email: "test@example.com",
+    },
+  }),
           logout: () => {},
           retryRestore: async () => {},
         }}>

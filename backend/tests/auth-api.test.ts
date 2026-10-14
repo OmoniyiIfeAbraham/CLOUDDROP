@@ -6,6 +6,8 @@ import {
   registerUser,
   loginUser,
   getCurrentUser,
+  verifyEmail,
+  resendVerificationEmail,
 } from "../src/services/auth.service.js";
 import { generateToken } from "../src/utils/auth.utils.js";
 
@@ -13,11 +15,15 @@ vi.mock("../src/services/auth.service.js", () => ({
   registerUser: vi.fn(),
   loginUser: vi.fn(),
   getCurrentUser: vi.fn(),
+  verifyEmail: vi.fn(),
+  resendVerificationEmail: vi.fn(),
 }));
 
 const mockedRegisterUser = vi.mocked(registerUser);
 const mockedLoginUser = vi.mocked(loginUser);
 const mockedGetCurrentUser = vi.mocked(getCurrentUser);
+const mockedVerifyEmail = vi.mocked(verifyEmail);
+const mockedResendVerificationEmail = vi.mocked(resendVerificationEmail);
 
 describe("Authentication API error handling", () => {
   beforeEach(() => {
@@ -77,5 +83,93 @@ describe("Authentication API error handling", () => {
     expect(response.body.success).toBe(false);
     expect(response.body.message).toBe("User not found");
     expect(response.body.error.code).toBe("USER_NOT_FOUND");
+  });
+
+  it("returns a token after successful email verification", async () => {
+    mockedVerifyEmail.mockResolvedValue({
+      user: {
+        id: "verified-user",
+        firstName: "Test",
+        lastName: "User",
+        email: "student@example.com",
+      },
+      token: "verified-login-token",
+      message: "Email verified successfully.",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/auth/verify-email")
+      .send({
+        email: "student@example.com",
+        code: "123456",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.token).toBe("verified-login-token");
+    expect(response.body.data.user.email).toBe("student@example.com");
+  });
+
+  it("rejects a verification code that is not six digits", async () => {
+    const response = await request(app)
+      .post("/api/v1/auth/verify-email")
+      .send({
+        email: "student@example.com",
+        code: "123",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(mockedVerifyEmail).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when a verification code is invalid", async () => {
+    mockedVerifyEmail.mockRejectedValue(
+      new ApiError(
+        400,
+        "Invalid or expired verification code",
+        "INVALID_VERIFICATION_CODE",
+      ),
+    );
+
+    const response = await request(app)
+      .post("/api/v1/auth/verify-email")
+      .send({
+        email: "student@example.com",
+        code: "123456",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_VERIFICATION_CODE");
+  });
+
+  it("handles verification resend requests", async () => {
+    mockedResendVerificationEmail.mockResolvedValue({
+      message:
+        "If an unverified account exists for that email, a verification code will be sent when permitted.",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/auth/resend-verification")
+      .send({
+        email: "student@example.com",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toContain("If an unverified account exists");
+  });
+
+  it("rejects a malformed email on a resend request", async () => {
+    const response = await request(app)
+      .post("/api/v1/auth/resend-verification")
+      .send({
+        email: "not-an-email",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(mockedResendVerificationEmail).not.toHaveBeenCalled();
   });
 });
