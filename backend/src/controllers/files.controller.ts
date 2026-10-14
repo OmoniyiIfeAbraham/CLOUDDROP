@@ -2,7 +2,10 @@ import type { NextFunction, Request, Response } from "express";
 import crypto from "node:crypto";
 import { ApiError } from "../utils/api-error.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
-import { validateUploadedFile } from "../utils/file-upload.validation.js";
+import {
+  validatePreviewableFileContent,
+  validateUploadedFile,
+} from "../utils/file-upload.validation.js";
 import { buildObjectKey } from "../lib/storage-key.js";
 import {
   createShareToken,
@@ -40,6 +43,14 @@ const getUserId = (req: Request): string => {
   return userId;
 };
 
+const INLINE_PREVIEW_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+
 export const uploadFile = async (
   req: Request,
   res: Response,
@@ -61,6 +72,8 @@ export const uploadFile = async (
     }
 
     const { category } = categoryResult.data;
+
+    await validatePreviewableFileContent(req.file.buffer, req.file.mimetype);
 
     const fileId = crypto.randomUUID();
     const s3Key = buildObjectKey(userId, fileId, req.file.originalname);
@@ -269,6 +282,61 @@ export const downloadFile = async (
           size: file.size,
         },
         downloadUrl,
+        expiresIn,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const viewFile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = getUserId(req);
+    const id = req.params.id as string;
+
+    if (!id) {
+      throw new ApiError(400, "File ID is required", "BAD_REQUEST");
+    }
+
+    const file = await getFileById(id, userId);
+
+    if (!file) {
+      throw new ApiError(404, "File not found", "NOT_FOUND");
+    }
+
+    if (!INLINE_PREVIEW_MIME_TYPES.has(file.mimeType)) {
+      throw new ApiError(
+        415,
+        "Preview is not supported for this file type",
+        "PREVIEW_NOT_SUPPORTED",
+      );
+    }
+
+    const expiresIn = 600;
+    const viewUrl = await generateDownloadUrl(
+      file.s3Key,
+      expiresIn,
+      file.originalName,
+      file.mimeType,
+      "inline",
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "File view URL generated successfully",
+      data: {
+        file: {
+          id: file.id,
+          originalName: file.originalName,
+          mimeType: file.mimeType,
+          size: file.size,
+        },
+        viewUrl,
         expiresIn,
       },
     });

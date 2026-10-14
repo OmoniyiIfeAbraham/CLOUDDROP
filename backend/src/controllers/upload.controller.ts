@@ -1,7 +1,10 @@
 import type { Request, Response } from "express";
 import { validateRequest } from "../utils/validation.utils.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
-import { validateUploadedFile } from "../utils/file-upload.validation.js";
+import {
+  validatePreviewableFileContent,
+  validateUploadedFile,
+} from "../utils/file-upload.validation.js";
 import { uploadToS3 } from "../services/s3.service.js";
 import { deleteFromS3 } from "../services/s3-delete.service.js";
 import { createFile } from "../services/file.service.js";
@@ -47,6 +50,8 @@ export const uploadFile = async (
       fileCategorySchema,
       req.body,
     );
+
+    await validatePreviewableFileContent(req.file.buffer, req.file.mimetype);
 
     const fileId = crypto.randomUUID();
 
