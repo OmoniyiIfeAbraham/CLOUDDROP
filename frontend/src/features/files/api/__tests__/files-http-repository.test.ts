@@ -132,7 +132,6 @@ describe("HTTP file actions", () => {
       expiresIn: 600,
     });
     expect(await repository.getTemporaryShare(file.id)).toEqual({
-      file: { id: file.id, originalName: file.originalName, mimeType: file.mimeType },
       shareUrl: "https://example.invalid/share",
       expiresIn: 86_400,
       expiresAt: "2026-10-09T12:00:00.000Z",

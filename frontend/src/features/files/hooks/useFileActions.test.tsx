@@ -252,13 +252,25 @@ describe("file actions", () => {
 
   it("removes an expired share URL and offers renewal", async () => {
     const base = createMockFilesRepository();
-    const getTemporaryShare = vi.fn(async (id: string) => ({ ...await base.getTemporaryShare(id), expiresIn: 0.05 }));
+    const getTemporaryShare = vi.fn(async (id: string) => ({
+      ...await base.getTemporaryShare(id),
+      expiresIn: 1,
+      expiresAt: new Date(Date.now() + 1000).toISOString(),
+    }));
     renderActions({ ...base, getTemporaryShare });
 
     await openShare(firstFile);
+
     expect(await screen.findByRole("textbox", { name: "Temporary link" })).toBeVisible();
-    expect(await screen.findByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
-    expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
+        expect(screen.getByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
+      },
+      { timeout: 3000 },
+    );
+
     fireEvent.click(screen.getByRole("button", { name: "Create new link" }));
     await waitFor(() => expect(getTemporaryShare).toHaveBeenCalledTimes(2));
   });
