@@ -107,7 +107,12 @@ describe("HTTP file actions", () => {
     const results = [
       success({ file: { ...file, s3Key: "private/key" } }),
       success({ file: { ...file, s3Key: "private/key" }, downloadUrl: "https://example.invalid/download", expiresIn: 600 }),
-      success({ file: { ...file, s3Key: "private/key" }, token: "share-token", shareUrl: "https://example.invalid/share", expiresAt: "2026-10-09T12:00:00.000Z", expiresIn: 86_400 }, 201),
+      success({
+        token: "share-token",
+        shareUrl: "https://example.invalid/share",
+        expiresAt: "2026-10-09T12:00:00.000Z",
+        expiresIn: 86_400,
+     }, 201),
       success(),
     ];
     const client = createApiClient({
