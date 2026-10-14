@@ -22,7 +22,7 @@ test("authenticate through the live backend", async ({ page, isMobile }, testInf
   if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
-  expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token"))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token") === null)).toBe(true);
 
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
@@ -36,5 +36,5 @@ test("authenticate through the live backend", async ({ page, isMobile }, testInf
   await page.evaluate(() => sessionStorage.setItem("clouddrop.access-token", "expired-token"));
   await page.goto("/files");
   await expect(page).toHaveURL(/\/login$/);
-  expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token"))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token") === null)).toBe(true);
 });
