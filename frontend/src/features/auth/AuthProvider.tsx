@@ -8,6 +8,7 @@ import type { AuthResult, Credentials, Registration, User } from "./auth-service
 import { AuthContext } from "./auth-context";
 import type { AuthContextValue } from "./auth-context";
 import { isApiError } from "../files/api/api-error";
+
 const service = USE_MOCK_API ? mockAuthService : httpAuthService;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -26,22 +27,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const retryRestore = useCallback(async () => {
     const token = sessionToken.get();
+
     if (!token) {
       setStatus("anonymous");
       return;
     }
+
     const version = ++sessionVersion.current;
     setStatus("loading");
+
     try {
       const currentUser = await service.me(token);
+
       if (version === sessionVersion.current) {
         setUser(currentUser);
         setStatus("authenticated");
       }
     } catch (error) {
       if (version !== sessionVersion.current) return;
-      // A rejected token, or an account that no longer exists, ends the session.
-      if (isApiError(error) && (error.code === "UNAUTHORIZED" || error.status === 401 || error.code === "USER_NOT_FOUND")) {
+
+      if (
+        isApiError(error) &&
+        (error.code === "UNAUTHORIZED" ||
+          error.status === 401 ||
+          error.code === "USER_NOT_FOUND")
+      ) {
         logout();
       } else {
         setStatus("restore-error");
@@ -52,6 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let active = true;
     const token = sessionToken.get();
+
     if (!token) {
       queueMicrotask(() => {
         if (active) setStatus("anonymous");
@@ -63,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     window.addEventListener(SESSION_EXPIRED_EVENT, logout);
+
     return () => {
       active = false;
       sessionVersion.current += 1;
@@ -83,9 +95,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [acceptSession]);
 
   const register = useCallback(async (details: Registration) => {
-    acceptSession(await service.register(details));
+    return service.register(details);
+  }, []);
+
+  const verifyEmail = useCallback(async (email: string, code: string) => {
+    acceptSession(await service.verifyEmail(email, code));
   }, [acceptSession]);
 
-  const value = useMemo(() => ({ user, status, login, register, logout, retryRestore }), [user, status, login, register, logout, retryRestore]);
+  const resendVerificationEmail = useCallback(async (email: string) => {
+    await service.resendVerificationEmail(email);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      status,
+      login,
+      register,
+      verifyEmail,
+      resendVerificationEmail,
+      logout,
+      retryRestore,
+    }),
+    [
+      user,
+      status,
+      login,
+      register,
+      verifyEmail,
+      resendVerificationEmail,
+      logout,
+      retryRestore,
+    ],
+  );
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
