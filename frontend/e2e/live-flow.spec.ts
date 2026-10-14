@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { capture, liveAccount } from "./live-helpers";
 
-import { capture } from "./live-helpers";
+test.use({ trace: "off", screenshot: "off", video: "off" });
 
 const isApi = (url: string, path: RegExp) => path.test(new URL(url).pathname);
 
@@ -9,9 +10,9 @@ test("register, sign in, upload, list, download, share, and delete through the l
   test.skip(process.env.VITE_USE_MOCK_API !== "false", "Requires a live backend with S3 and VITE_USE_MOCK_API=false");
   test.setTimeout(120_000);
 
-  const email = `live-flow-${Date.now()}-${testInfo.project.name}@example.test`;
-  const password = "securepass123";
-  const fileName = `live-flow-${Date.now()}-${testInfo.project.name}.txt`;
+  let email = "";
+  let password = "";
+  let fileName = "";
   const content = `CloudDrop live flow check ${new Date().toISOString()}`;
   let shareUrl = "";
   let token = "";
@@ -21,17 +22,9 @@ test("register, sign in, upload, list, download, share, and delete through the l
 
   try {
   await test.step("register", async () => {
-    await page.goto("/register");
-    await page.getByLabel("First name").fill("Ada");
-    await page.getByLabel("Last name").fill("Lovelace");
-    await page.getByLabel("Email address").fill(email);
-    await page.getByLabel("Password", { exact: true }).fill(password);
-    const registered = page.waitForResponse((response) => isApi(response.url(), /\/api\/v1\/auth\/register$/));
-    await page.getByRole("button", { name: "Create account" }).click();
-    const registration = await registered;
-    expect(registration.status()).toBe(201);
-    token = (await registration.json()).data.token;
-    await expect(page.getByRole("heading", { name: /Good to see you, Ada/ })).toBeVisible();
+    const account = await liveAccount(page, testInfo, { firstName: "Ada", lastName: "Lovelace" });
+    ({ email, password, token } = account);
+    fileName = `${account.prefix}-live-flow.txt`;
     await capture(page, testInfo, "01-registered");
   });
 

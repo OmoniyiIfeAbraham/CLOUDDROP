@@ -1,16 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { liveAccount } from "./live-helpers";
+
+test.use({ trace: "off", screenshot: "off", video: "off" });
 
 test("list and search files through the live backend", async ({ page, isMobile }, testInfo) => {
   test.skip(process.env.VITE_USE_MOCK_API !== "false", "Requires a backend on port 5000 and VITE_USE_MOCK_API=false");
 
-  const email = `live-files-${Date.now()}-${testInfo.project.name}@example.test`;
-  await page.goto("/register");
-  await page.getByLabel("First name").fill("Ada");
-  await page.getByLabel("Last name").fill("Lovelace");
-  await page.getByLabel("Email address").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("securepass123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByRole("heading", { name: /Good to see you, Ada/ })).toBeVisible();
+  await liveAccount(page, testInfo, { firstName: "Ada", lastName: "Lovelace" });
 
   if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
   const list = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/files");

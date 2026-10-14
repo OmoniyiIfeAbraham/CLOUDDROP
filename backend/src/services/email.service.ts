@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { deliverToTestMailbox } from "./test-mailbox.service.js";
 
 interface VerificationEmail {
   to: string;
@@ -19,6 +20,8 @@ export const sendVerificationEmail = async ({
   firstName,
   code,
 }: VerificationEmail): Promise<void> => {
+  if (await deliverToTestMailbox(to, code)) return;
+
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
 

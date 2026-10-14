@@ -3,6 +3,8 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { capture, checks, isApi, liveAccount, openPage } from "./live-helpers";
 
+test.use({ trace: "off", screenshot: "off", video: "off" });
+
 const enabled = process.env.CLOUDDROP_LIVE_QA === "true";
 test.beforeEach(() => test.skip(!enabled, "Opt in with npm run test:live and E2E_BASE_URL"));
 
