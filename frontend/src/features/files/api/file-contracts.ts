@@ -35,12 +35,10 @@ const downloadResultSchema = z.object({
   expiresIn: z.number().positive(),
 });
 const shareResultSchema = z.object({
-  file: fileRecordSchema.pick({ id: true, originalName: true, mimeType: true }),
-  shareUrl: z.string(),
+  shareUrl: z.string().url(),
   expiresIn: z.number().positive(),
-  expiresAt: z.iso.datetime().optional(),
+  expiresAt: z.iso.datetime(),
 });
-
 const invalidResponse = (): ApiError => new ApiError({
   message: "The API returned invalid file data.",
   code: "INVALID_RESPONSE",
