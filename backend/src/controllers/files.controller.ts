@@ -2,13 +2,16 @@ import type { NextFunction, Request, Response } from "express";
 import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
 import { ApiError } from "../utils/api-error.js";
-import { validateRequest } from "../utils/validation.utils.js";
 import { fileCategorySchema } from "../utils/file.validation.js";
-import { validateUploadedFile } from "../utils/file-upload.validation.js";
+import {
+  validatePreviewableFileContent,
+  validateUploadedFile,
+} from "../utils/file-upload.validation.js";
 import { buildObjectKey } from "../lib/storage-key.js";
 import {
   createShareToken,
   resolveShareExpiry,
+  isShareExpired,
   DEFAULT_SHARE_TTL_HOURS,
 } from "../lib/share-policy.js";
 import { uploadToS3 } from "../services/s3.service.js";
@@ -54,6 +57,14 @@ const getUserId = (req: Request): string => {
   return userId;
 };
 
+const INLINE_PREVIEW_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+
 export const uploadFile = async (
   req: Request,
   res: Response,
@@ -68,7 +79,15 @@ export const uploadFile = async (
 
     validateUploadedFile(req.file.mimetype, req.file.size);
 
-    const { category } = validateRequest(fileCategorySchema, req.body);
+    const categoryResult = fileCategorySchema.safeParse(req.body);
+
+    if (!categoryResult.success) {
+      throw new ApiError(400, "Invalid file category", "BAD_REQUEST");
+    }
+
+    const { category } = categoryResult.data;
+
+    await validatePreviewableFileContent(req.file.buffer, req.file.mimetype);
 
     const fileId = crypto.randomUUID();
     const s3Key = buildObjectKey(userId, fileId, req.file.originalname);
@@ -285,6 +304,61 @@ export const downloadFile = async (
   }
 };
 
+export const viewFile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = getUserId(req);
+    const id = req.params.id as string;
+
+    if (!id) {
+      throw new ApiError(400, "File ID is required", "BAD_REQUEST");
+    }
+
+    const file = await getFileById(id, userId);
+
+    if (!file) {
+      throw new ApiError(404, "File not found", "NOT_FOUND");
+    }
+
+    if (!INLINE_PREVIEW_MIME_TYPES.has(file.mimeType)) {
+      throw new ApiError(
+        415,
+        "Preview is not supported for this file type",
+        "PREVIEW_NOT_SUPPORTED",
+      );
+    }
+
+    const expiresIn = 600;
+    const viewUrl = await generateDownloadUrl(
+      file.s3Key,
+      expiresIn,
+      file.originalName,
+      file.mimeType,
+      "inline",
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "File view URL generated successfully",
+      data: {
+        file: {
+          id: file.id,
+          originalName: file.originalName,
+          mimeType: file.mimeType,
+          size: file.size,
+        },
+        viewUrl,
+        expiresIn,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteFile = async (
   req: Request,
   res: Response,
@@ -327,18 +401,24 @@ export const createShare = async (
     }
 
     const file = await getFileById(id, userId);
-
     if (!file) {
       throw new ApiError(404, "File not found", "NOT_FOUND");
     }
 
     const ttlHours =
-      typeof req.body?.ttlHours === "number"
-        ? req.body.ttlHours
-        : DEFAULT_SHARE_TTL_HOURS;
+      req.body?.ttlHours === undefined
+        ? DEFAULT_SHARE_TTL_HOURS
+        : req.body.ttlHours;
+
+    if (typeof ttlHours !== "number") {
+      throw new ApiError(
+        400,
+        "Share TTL must be 1, 24, or 168 hours",
+        "BAD_REQUEST",
+      );
+    }
 
     let expiresAt: Date;
-
     try {
       expiresAt = resolveShareExpiry(ttlHours);
     } catch (err) {
@@ -352,38 +432,77 @@ export const createShare = async (
     const token = createShareToken();
 
     await prisma.share.create({
-      data: {
-        fileId: file.id,
-        token,
-        expiresAt,
-      },
+      data: { fileId: file.id, token, expiresAt },
     });
 
-    const expiresInSeconds = Math.min(
-      Math.floor((expiresAt.getTime() - Date.now()) / 1000),
-      7 * 24 * 60 * 60,
-    );
-
-    const shareUrl = await generateShareUrl(
-      file.s3Key,
-      expiresInSeconds,
-    );
+    const baseUrl = (
+      process.env.PUBLIC_APP_URL ??
+      "https://clouddrop-c8.duckdns.org"
+    ).replace(/\/+$/, "");
 
     res.status(201).json({
       success: true,
-      message: "Share URL generated successfully",
+      message: "Share link created successfully",
       data: {
-        file: {
-          id: file.id,
-          originalName: file.originalName,
-          mimeType: file.mimeType,
-        },
-        token,
-        shareUrl,
+        shareUrl: `${baseUrl}/s/${token}`,
         expiresAt: expiresAt.toISOString(),
-        expiresIn: expiresInSeconds,
+        expiresIn: Math.floor(
+          (expiresAt.getTime() - Date.now()) / 1000,
+        ),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPublicShareDownload = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const token = req.params.token as string;
+
+    if (!/^[A-Za-z0-9_-]{16}$/.test(token)) {
+      throw new ApiError(
+        404,
+        "This share link is invalid or no longer available",
+        "SHARE_NOT_FOUND",
+      );
+    }
+
+    const share = await prisma.share.findUnique({
+      where: { token },
+      include: { file: true },
+    });
+
+    if (!share || isShareExpired(share.expiresAt)) {
+      throw new ApiError(
+        404,
+        "This share link is invalid or no longer available",
+        "SHARE_NOT_FOUND",
+      );
+    }
+
+    const remainingSeconds = Math.floor(
+      (share.expiresAt.getTime() - Date.now()) / 1000,
+    );
+
+    if (remainingSeconds <= 0) {
+      throw new ApiError(
+        404,
+        "This share link is invalid or no longer available",
+        "SHARE_NOT_FOUND",
+      );
+    }
+
+    const downloadUrl = await generateShareUrl(
+      share.file.s3Key,
+      Math.min(300, remainingSeconds),
+    );
+
+    res.redirect(302, downloadUrl);
   } catch (error) {
     next(error);
   }

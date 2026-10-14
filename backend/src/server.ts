@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes.js";
 import { filesRoutes } from "./routes/files.routes.js";
 import { categoriesRoutes } from "./routes/categories.routes.js";
 import { dashboardRoutes } from "./routes/dashboard.routes.js";
+import shareRoutes from "./routes/share.routes.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use("/api/v1/files", filesRoutes);
 // Categories & dashboard
 app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/s", shareRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

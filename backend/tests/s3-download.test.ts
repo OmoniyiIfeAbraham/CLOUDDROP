@@ -54,6 +54,29 @@ describe("S3 download URL", () => {
     expect(options.expiresIn).toBe(600);
   });
 
+  it("requests inline content with the stored MIME type for viewing", async () => {
+    const filename = "preview.pdf";
+
+    await generateDownloadUrl(
+      "users/u1/files/f1/preview.pdf",
+      600,
+      filename,
+      "application/pdf",
+      "inline",
+    );
+
+    const [, command] = getSignedUrlMock.mock.calls[0] as [
+      typeof s3Client,
+      GetObjectCommand,
+      { expiresIn: number },
+    ];
+
+    expect(command.input.ResponseContentDisposition).toBe(
+      createContentDisposition(filename, { type: "inline" }),
+    );
+    expect(command.input.ResponseContentType).toBe("application/pdf");
+  });
+
   it.each([
     'my "report".pdf',
     "résumé – final.pdf",

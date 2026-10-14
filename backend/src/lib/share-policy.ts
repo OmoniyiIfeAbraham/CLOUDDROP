@@ -4,17 +4,18 @@ export const DEFAULT_SHARE_TTL_HOURS = 24;
 export const MAX_SHARE_TTL_HOURS = 168;
 
 export const createShareToken = (): string => {
-  return randomBytes(32).toString("hex");
+  return randomBytes(12).toString("base64url");
 };
 
 export const resolveShareExpiry = (
   ttlHours: number = DEFAULT_SHARE_TTL_HOURS,
   now: Date = new Date()
 ): Date => {
-  if (!Number.isFinite(ttlHours) || ttlHours <= 0 || ttlHours > MAX_SHARE_TTL_HOURS) {
-    throw new Error(
-      `Share TTL must be between 1 and ${MAX_SHARE_TTL_HOURS} hours`
-    );
+  if (
+    !Number.isFinite(ttlHours) ||
+    ![1, 24, 168].includes(ttlHours)
+  ) {
+    throw new Error("Share TTL must be 1, 24, or 168 hours");
   }
 
   return new Date(now.getTime() + ttlHours * 60 * 60 * 1000);

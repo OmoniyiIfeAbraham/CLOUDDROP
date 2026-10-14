@@ -3,6 +3,7 @@ import {
   createShare,
   deleteFile,
   downloadFile,
+  viewFile,
   getFile,
   listFiles,
   uploadFile,
@@ -19,6 +20,7 @@ filesRoutes.use(authMiddleware, requireAuth);
 filesRoutes.post("/", upload.single("file"), uploadFile);
 filesRoutes.get("/", listFiles);
 filesRoutes.get("/:id", getFile);
+filesRoutes.get("/:id/view", viewFile);
 filesRoutes.get("/:id/download", downloadFile);
 filesRoutes.delete("/:id", deleteFile);
 filesRoutes.post("/:id/share", createShare);
