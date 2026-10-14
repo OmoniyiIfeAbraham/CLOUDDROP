@@ -47,13 +47,20 @@ export const createHttpFilesRepository = (
   async getDownload(fileId: string, disposition: FileDisposition = "attachment"): Promise<DownloadResult> {
     return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download", { query: { disposition } }));
   },
+  
+async getTemporaryShare(fileId: string, ttlHours = 24): Promise<ShareResult> {
+  failWhenConfigured("share");
+  const file = findFile(fileId);
+  sharesCreated += 1;
 
-  async getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult> {
-    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share", {
-      method: "POST",
-      ...(ttlHours === undefined ? {} : { body: JSON.stringify({ ttlHours }) }),
-    }));
-  },
+  const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
+
+  return {
+    shareUrl: "https://example.invalid/share/" + encodeURIComponent(file.id),
+    expiresIn: ttlHours * 3600,
+    expiresAt,
+  };
+},
 
   async deleteFile(fileId: string): Promise<void> {
     await client.request<void>(filePath(fileId), {
