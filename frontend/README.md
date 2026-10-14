@@ -27,6 +27,7 @@ Run the backend on port 5000. Vite proxies `/api` and `/health` there. The brows
 
 ```bash
 npm run typecheck
+npm run typecheck:e2e
 npm run lint
 npm test
 npm run build
@@ -38,54 +39,27 @@ npm run test:downloads
 
 Playwright also needs the host's Chromium system libraries. The browser suite runs against the demo Vite server and checks desktop and mobile flows. The production build is emitted to `frontend/dist/`.
 
-To check authentication against a running local backend on port 5000, use a backend database intended for testing, then run:
-
-```bash
-VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-auth.spec.ts
-```
-
-This opt-in test creates a unique account for each browser project and checks registration, session restoration, logout, login, and invalid-token/session handling. It is skipped in the default demo-mode suite. A deployed backend still needs a separate environment check.
-
-To check the file library's empty-list and search responses through that backend, run:
-
-```bash
-VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-files.spec.ts
-```
-
-To check the whole flow against a backend with working S3 (register, sign in, upload, list and search, download, share with a 1-hour link, delete), run:
-
-```bash
-VITE_USE_MOCK_API=false VITE_API_BASE_URL=/api/v1 npm run test:e2e -- e2e/live-flow.spec.ts
-```
-
-Each step saves a screenshot under `test-results/`. The test also fetches the download and share links to confirm they return the uploaded content, and checks that the share link stops working after deletion. To run it against a deployed site instead of a local dev server, set `E2E_BASE_URL`:
-
-```bash
-E2E_BASE_URL=https://<deployed-host> VITE_USE_MOCK_API=false npm run test:e2e -- e2e/live-flow.spec.ts
-```
-
-The file-library and full-flow tests also create unique test users. The full-flow test removes its uploaded file in a final cleanup step even if a later assertion fails; test accounts remain in the database. The current backend supports server-side category filtering, filename search, pagination, and dashboard statistics.
+Live registration now completes email verification before receiving a session token. See [live email verification setup](docs/live-email-verification.md) for the isolated backend, disposable database and private code-delivery transport. The mock code `123456` is never used by live tests. Existing demo/live skip conditions remain unchanged.
 
 The download fixture suite starts the app in HTTP API mode and a separate local HTTPS file server, then tests desktop Chromium, mobile Chromium, and mobile WebKit without a backend database or S3. It checks saved bytes/Unicode filenames, inline-link rejection, separate previewing, cancellation, retry, expiry, narrow layout, and explicit dialog focus restoration. It requires `openssl` to generate disposable test certificates; certificate checking is relaxed only in this local fixture configuration.
 
 
 ## Final live QA
 
-Run the deployed application with actual authentication, PostgreSQL and S3:
+After configuring the isolated E2E backend and private mailbox, run the four-browser auth and library checks without S3:
 
 ```bash
-E2E_BASE_URL=https://clouddrop-c8.duckdns.org npm run test:live
+E2E_BASE_URL=http://127.0.0.1:25000 CLOUDDROP_LOCAL_FRONTEND=true \
+  npm run test:live -- e2e/live-auth.spec.ts e2e/live-files.spec.ts
 ```
 
-The opt-in runner uses desktop/mobile Chromium and WebKit, one worker, unique QA accounts, real uploads and final cleanup. It writes screenshots, expected/actual checks and JSON results to ignored `test-results-live/`. No API responses are mocked. The recovery case briefly disables browser networking; the client-cancellation case stalls/aborts an outgoing request before it reaches the backend. These checks do not prove server-side rollback. Share-link fields are masked in explicit screenshots and tracing is disabled; inspect other failure artifacts before sharing them. Test accounts remain because the API has no account deletion route.
-
-To check the local frontend source against the same real deployed backend while awaiting a frontend deployment:
+Run the full matrix only after isolated S3/HTTPS and public-share routing are ready:
 
 ```bash
-E2E_BASE_URL=https://clouddrop-c8.duckdns.org CLOUDDROP_LOCAL_FRONTEND=true npm run test:live
+E2E_BASE_URL=https://<isolated-test-ui> npm run test:live
 ```
 
-This starts a local UI with mocks disabled and proxies actual API requests to the HTTPS deployment. It does not change production or establish which UI is deployed. Keep its results separate from the deployed-site run. `CLOUDDROP_QA_OUTPUT` and `CLOUDDROP_QA_REPORT` can direct evidence to a private folder outside the repository. Actual 24-hour/7-day expiration, physical-device Safari and a human screen-reader review remain separate acceptance checks.
+The opt-in runner uses desktop/mobile Chromium and WebKit, one worker, unique QA accounts and final upload cleanup. No API responses are mocked. A private instance marker and matching backend health header are required before any registration; normal production servers are refused. Traces, video and automatic screenshots are disabled for live specs; explicit captures mask codes, passwords and share links. `CLOUDDROP_QA_OUTPUT` and `CLOUDDROP_QA_REPORT` can keep evidence outside the repository. Never include the mailbox in artifacts. Accounts remain in the disposable test database until it is discarded. Actual long-duration sharing, physical-device Safari and human screen-reader review remain separate acceptance checks.
 
 ## View and download behavior
 
