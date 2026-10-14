@@ -61,12 +61,24 @@ describe("HTTP file actions", () => {
   });
 
   it("retains a short CloudDrop share URL and absolute expiry while discarding the separate token", async () => {
-    const expiresAt = "2026-11-13T10:00:00.000Z";
-    const shareUrl = "https://clouddrop-c8.duckdns.org/s/Ab7kP2xQ";
-    const sharedFile = { id: file.id, originalName: file.originalName, mimeType: file.mimeType };
-    const client = createApiClient({ baseUrl: "/api/v1", getToken: () => "token-123", fetchImpl: async () => success({ file: sharedFile, shareUrl, expiresIn: 86400, expiresAt, token: "not-needed-by-ui" }) });
-    expect(await createHttpFilesRepository(client).getTemporaryShare(file.id, 24)).toEqual({ file: sharedFile, shareUrl, expiresIn: 86400, expiresAt });
+  const expiresAt = "2026-11-13T10:00:00.000Z";
+  const shareUrl = "https://clouddrop-c8.duckdns.org/s/Ab7kP2xQ";
+  const client = createApiClient({
+    baseUrl: "/api/v1",
+    getToken: () => "token-123",
+    fetchImpl: async () =>
+      success({
+        shareUrl,
+        expiresIn: 86400,
+        expiresAt,
+        token: "not-needed-by-ui",
+      }),
   });
+
+  expect(
+    await createHttpFilesRepository(client).getTemporaryShare(file.id, 24),
+  ).toEqual({ shareUrl, expiresIn: 86400, expiresAt });
+});
 
   it("reads dashboard totals from the stats endpoint", async () => {
     const paths: string[] = [];
