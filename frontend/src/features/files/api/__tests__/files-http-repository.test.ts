@@ -162,7 +162,11 @@ describe("HTTP file actions", () => {
       getToken: () => "token-123",
       fetchImpl: async (_path: string, init?: FetchRequestInit) => {
         bodies.push(init?.body);
-        return success({ file, shareUrl: "https://example.invalid/share", expiresIn: 604_800 }, 201);
+        return success({
+          shareUrl: "https://example.invalid/share",
+          expiresIn: 604_800,
+          expiresAt: "2026-11-13T10:00:00.000Z",
+        }, 201);
       },
     });
     const repository = createHttpFilesRepository(client);
