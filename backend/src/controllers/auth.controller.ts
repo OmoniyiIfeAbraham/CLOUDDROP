@@ -5,6 +5,8 @@ import {
   getCurrentUser,
   verifyEmail as verifyEmailService,
   resendVerificationEmail,
+  requestPasswordReset,
+  resetPassword as resetPasswordService,
 } from "../services/auth.service.js";
 import { validateRequest } from "../utils/validation.utils.js";
 import {
@@ -12,6 +14,8 @@ import {
   loginSchema,
   verifyEmailSchema,
   resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../utils/auth.validation.js";
 
 export const register = async (req: Request, res: Response) => {
@@ -108,5 +112,30 @@ export const me = async (req: Request, res: Response) => {
     data: {
       user,
     },
+  });
+};
+
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = validateRequest(forgotPasswordSchema, req.body);
+  const result = await requestPasswordReset(email);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+  });
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, newPassword } = validateRequest(
+    resetPasswordSchema,
+    req.body,
+  );
+
+  const result = await resetPasswordService(token, newPassword);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
   });
 };
