@@ -47,12 +47,14 @@ export const createHttpFilesRepository = (
   async getDownload(fileId: string, disposition: FileDisposition = "attachment"): Promise<DownloadResult> {
     return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download", { query: { disposition } }));
   },
-
-  async getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult> {
-    return parseShareResult(await client.request<unknown>(filePath(fileId) + "/share", {
+  
+  async getTemporaryShare(fileId: string, ttlHours = 24): Promise<ShareResult> {
+    const data = await client.request<unknown>(filePath(fileId) + "/share", {
       method: "POST",
-      ...(ttlHours === undefined ? {} : { body: JSON.stringify({ ttlHours }) }),
-    }));
+      ...(ttlHours === 24 ? {} : { body: JSON.stringify({ ttlHours }) }),
+    });
+
+    return parseShareResult(data);
   },
 
   async deleteFile(fileId: string): Promise<void> {

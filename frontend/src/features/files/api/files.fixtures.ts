@@ -107,13 +107,9 @@ export const dashboardStatsFixture: DashboardStats = {
 };
 
 export const expiringShareFixture: ShareResult = {
-  file: {
-    id: primaryFileFixture.id,
-    originalName: primaryFileFixture.originalName,
-    mimeType: primaryFileFixture.mimeType,
-  },
   shareUrl: "https://example.invalid/share/file-document-1",
   expiresIn: 5,
+  expiresAt: "2026-10-14T17:10:00.000Z",
 };
 
 export const mockFailureFixtures = {

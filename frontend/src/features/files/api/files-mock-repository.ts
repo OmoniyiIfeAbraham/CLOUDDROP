@@ -115,13 +115,9 @@ export const createMockFilesRepository = (
       sharesCreated += 1;
 
       return {
-        file: {
-          id: file.id,
-          originalName: file.originalName,
-          mimeType: file.mimeType,
-        },
         shareUrl: "https://example.invalid/share/" + encodeURIComponent(file.id),
         expiresIn: ttlHours * 3600,
+        expiresAt: new Date(Date.now() + ttlHours * 3600 * 1000).toISOString(),
       };
     },
 

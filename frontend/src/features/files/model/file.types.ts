@@ -28,10 +28,9 @@ export interface DownloadResult {
 }
 
 export interface ShareResult {
-  file: Pick<FileRecord, "id" | "mimeType" | "originalName">;
   shareUrl: string;
   expiresIn: number;
-  expiresAt?: string | undefined;
+  expiresAt: string;
 }
 
 export interface FileListQuery {
