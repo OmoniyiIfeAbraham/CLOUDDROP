@@ -8,6 +8,8 @@ import {
   getCurrentUser,
   verifyEmail,
   resendVerificationEmail,
+  requestPasswordReset,
+  resetPassword,
 } from "../src/services/auth.service.js";
 import { generateToken } from "../src/utils/auth.utils.js";
 
@@ -17,6 +19,8 @@ vi.mock("../src/services/auth.service.js", () => ({
   getCurrentUser: vi.fn(),
   verifyEmail: vi.fn(),
   resendVerificationEmail: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  resetPassword: vi.fn(),
 }));
 
 const mockedRegisterUser = vi.mocked(registerUser);
@@ -24,6 +28,8 @@ const mockedLoginUser = vi.mocked(loginUser);
 const mockedGetCurrentUser = vi.mocked(getCurrentUser);
 const mockedVerifyEmail = vi.mocked(verifyEmail);
 const mockedResendVerificationEmail = vi.mocked(resendVerificationEmail);
+const mockedRequestPasswordReset = vi.mocked(requestPasswordReset);
+const mockedResetPassword = vi.mocked(resetPassword);
 
 describe("Authentication API error handling", () => {
   beforeEach(() => {
@@ -171,5 +177,97 @@ describe("Authentication API error handling", () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");
     expect(mockedResendVerificationEmail).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Password reset API", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns a generic response for a forgot-password request", async () => {
+    mockedRequestPasswordReset.mockResolvedValue({
+      message:
+        "If an account exists for that email, password-reset instructions will be sent.",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: "student@example.com" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toContain("If an account exists");
+  });
+
+  it("rejects a malformed email for forgot-password", async () => {
+    const response = await request(app)
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: "not-an-email" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(mockedRequestPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reset request with a short password", async () => {
+    const response = await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({ token: "sample-token", newPassword: "short" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(mockedResetPassword).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reset request without a token", async () => {
+    const response = await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({ newPassword: "long-enough-password" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(mockedResetPassword).not.toHaveBeenCalled();
+  });
+
+  it("returns an error for an invalid or expired reset token", async () => {
+    mockedResetPassword.mockRejectedValue(
+      new ApiError(
+        400,
+        "This password-reset link is invalid or has expired. Please request another one.",
+        "INVALID_OR_EXPIRED_RESET_TOKEN",
+      ),
+    );
+
+    const response = await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: "invalid-token",
+        newPassword: "long-enough-password",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_OR_EXPIRED_RESET_TOKEN");
+  });
+
+  it("accepts a valid reset request", async () => {
+    mockedResetPassword.mockResolvedValue({
+      message: "Password reset successful. You can now log in.",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: "sample-valid-token",
+        newPassword: "long-enough-password",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(mockedResetPassword).toHaveBeenCalledWith(
+      "sample-valid-token",
+      "long-enough-password",
+    );
   });
 });

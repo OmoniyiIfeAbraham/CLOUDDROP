@@ -10,7 +10,15 @@ import {
   MAX_VERIFICATION_ATTEMPTS,
   VERIFICATION_RESEND_COOLDOWN_SECONDS,
 } from "../utils/email-verification.utils.js";
-import { sendVerificationEmail } from "./email.service.js";
+import {
+  generatePasswordResetToken,
+  hashPasswordResetToken,
+  getPasswordResetExpiry,
+} from "../utils/password-reset.utils.js";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "./email.service.js";
 import {
   hashPassword,
   comparePassword,
@@ -351,4 +359,115 @@ export const getCurrentUser = async (userId: string) => {
   }
 
   return user;
+};
+
+
+const PASSWORD_RESET_GENERIC_MESSAGE =
+  "If an account exists for that email, password-reset instructions will be sent.";
+
+export const requestPasswordReset = async (email: string) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  // Keep the response the same when the email is not registered.
+  if (!user) {
+    return { message: PASSWORD_RESET_GENERIC_MESSAGE };
+  }
+
+  const token = generatePasswordResetToken();
+  const tokenHash = hashPasswordResetToken(token);
+  const expiresAt = getPasswordResetExpiry();
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: expiresAt,
+    },
+  });
+
+  const frontendUrl = (
+    process.env.FRONTEND_URL || "http://localhost:5173"
+  ).replace(/\/$/, "");
+
+  const resetLink =
+    `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+  try {
+    await sendPasswordResetEmail({
+      to: user.email,
+      firstName: user.firstName,
+      resetLink,
+    });
+  } catch (error) {
+    // Clear only the token created by this request.
+    await prisma.user.updateMany({
+      where: {
+        id: user.id,
+        passwordResetTokenHash: tokenHash,
+      },
+      data: {
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
+    console.error("Password-reset email could not be sent.");
+    // Do not reveal account existence or email delivery details.
+  }
+
+  return { message: PASSWORD_RESET_GENERIC_MESSAGE };
+};
+
+export const resetPassword = async (
+  token: string,
+  newPassword: string,
+) => {
+  const tokenHash = hashPasswordResetToken(token);
+  const now = new Date();
+
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+
+  if (!user) {
+    throw new ApiError(
+      400,
+      "This password-reset link is invalid or has expired. Please request another one.",
+      "INVALID_OR_EXPIRED_RESET_TOKEN",
+    );
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  // The conditional update prevents reuse and competing reset requests.
+  const result = await prisma.user.updateMany({
+    where: {
+      id: user.id,
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: { gt: new Date() },
+    },
+    data: {
+      passwordHash,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+    },
+  });
+
+  if (result.count !== 1) {
+    throw new ApiError(
+      400,
+      "This password-reset link is invalid or has expired. Please request another one.",
+      "INVALID_OR_EXPIRED_RESET_TOKEN",
+    );
+  }
+
+  return { message: "Password reset successful. You can now log in." };
 };
