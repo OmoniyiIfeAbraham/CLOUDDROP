@@ -23,7 +23,7 @@ const pdf = {
 const url = "https://storage.example/preview.pdf";
 
 describe("PDF preview", () => {
-  it("renders a titled sandboxed iframe even when the browser reports no inline PDF viewer", () => {
+  it("shows a fallback message when the browser reports no inline PDF viewer", () => {
     Object.defineProperty(navigator, "pdfViewerEnabled", {
       value: false,
       configurable: true,
@@ -31,10 +31,12 @@ describe("PDF preview", () => {
 
     render(<FilePreview file={pdf} url={url} onError={() => {}} />);
 
-    const frame = screen.getByTitle("Preview of preview.pdf");
-    expect(frame).toHaveAttribute("src", url);
-    expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
-    expect(frame).toHaveAttribute("referrerPolicy", "no-referrer");
+    expect(
+      screen.getByText(
+        "A browser preview is not available for this file type. Download the file to open it on your device.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByTitle("Preview of preview.pdf")).not.toBeInTheDocument();
   });
 
   it("renders the PDF iframe when the browser reports an inline PDF viewer", () => {

@@ -81,6 +81,18 @@ export const FilePreview = ({
   }
 
   if (type === "application/pdf") {
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.pdfViewerEnabled === false
+    ) {
+      return (
+        <p className="dialog__intro">
+          A browser preview is not available for this file type. Download the
+          file to open it on your device.
+        </p>
+      );
+    }
+
     return (
       <iframe
         className="file-preview__document"
