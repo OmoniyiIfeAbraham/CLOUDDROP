@@ -8,3 +8,4 @@ test-results-downloads/
 .env.local
 .env.*.local
 test-results-live/
+test-results-recovery/

@@ -13,7 +13,7 @@ process.env.CLOUDDROP_API_PROXY_TARGET = target.origin;
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: ["live-auth.spec.ts", "live-files.spec.ts", "live-flow.spec.ts", "live-qa.spec.ts"],
+  testMatch: ["live-auth.spec.ts", "live-files.spec.ts", "live-flow.spec.ts", "live-qa.spec.ts", "live-password-recovery.spec.ts"],
   outputDir: process.env.CLOUDDROP_QA_OUTPUT ?? "test-results-live",
   workers: 1,
   retries: 0,

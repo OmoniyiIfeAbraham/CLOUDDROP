@@ -35,11 +35,14 @@ npx playwright install chromium
 npm run test:e2e
 npx playwright install webkit
 npm run test:downloads
+npm run test:recovery
 ```
 
 Playwright also needs the host's Chromium system libraries. The browser suite runs against the demo Vite server and checks desktop and mobile flows. The production build is emitted to `frontend/dist/`.
 
 Live registration now completes email verification before receiving a session token. See [live email verification setup](docs/live-email-verification.md) for the isolated backend, disposable database and private code-delivery transport. The mock code `123456` is never used by live tests. Existing demo/live skip conditions remain unchanged.
+
+Password recovery is available through the sign-in page, `/forgot-password` and `/reset-password?token=…`. See [the password recovery handoff](docs/password-recovery-handoff.md) for the API contract, origin-only backend `FRONTEND_URL`, isolated reset-email tests and coordinated rollout checklist.
 
 The download fixture suite starts the app in HTTP API mode and a separate local HTTPS file server, then tests desktop Chromium, mobile Chromium, and mobile WebKit without a backend database or S3. It checks saved bytes/Unicode filenames, inline-link rejection, separate previewing, cancellation, retry, expiry, narrow layout, and explicit dialog focus restoration. It requires `openssl` to generate disposable test certificates; certificate checking is relaxed only in this local fixture configuration.
 
