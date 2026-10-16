@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Download, ExternalLink, Link2, Trash2 } from "lucide-react";
-import { FilePreview } from "../components/FilePreview";
+import { FilePreview, FilePreviewUnavailable } from "../components/FilePreview";
 import { Dialog } from "../../../components/ui/Dialog";
 import { useToast } from "../../../components/ui/toast-context";
 import { formatBytes, formatDateTime, formatDuration } from "../../../lib/format";
@@ -10,6 +10,7 @@ import { fileMessage } from "../../../lib/messages";
 import { useFilesRepository } from "../api/files-context";
 import type { FileRecord, ShareResult } from "../model/file.types";
 import { canSaveDirectly, requireHttpsUrl, startFileDownload } from "../lib/file-links";
+import { canPreviewInBrowser } from "../lib/file-preview";
 
 const SHARE_DURATIONS = [
   { hours: 1, label: "1 hour" },
@@ -80,18 +81,20 @@ export const useFileActions = () => {
     setDownloadUrl("");
     setDownloadError("");
     setDownloadExpiresAt(null);
+    if (action === "view" && !canPreviewInBrowser(file.mimeType)) {
+      // Nothing to fetch: the dialog explains and offers Download instead.
+      activeDownload.current = false;
+      setDownloadLoading(false);
+      return;
+    }
     setDownloadLoading(true);
     setBusyFileId(file.id);
     try {
-      const result = await repository.getDownload(file.id, action === "view" ? "inline" : "attachment");
+      const result = action === "view" ? await repository.getView(file.id) : await repository.getDownload(file.id);
       if (requestId !== downloadRequestId.current) return;
-      const url = requireHttpsUrl(result.downloadUrl);
+      const url = requireHttpsUrl("viewUrl" in result ? result.viewUrl : result.downloadUrl);
       if (action === "download" && !canSaveDirectly(url)) {
         setDownloadError("Direct download is not available for this file yet. You can use View to preview it.");
-        return;
-      }
-      if (action === "view" && /^attachment(?:\s*;|\s*$)/i.test(new URL(url).searchParams.get("response-content-disposition") ?? "")) {
-        setDownloadError("A preview is not available for this file. Use Download to save it.");
         return;
       }
       setDownloadUrl(url);
@@ -221,6 +224,7 @@ export const useFileActions = () => {
           <p className="dialog__intro"><strong>{downloadTarget?.originalName}</strong>{downloadTarget && <> <span aria-hidden="true">·</span> {formatBytes(downloadTarget.size)}</>}</p>
           {downloadLoading && <div className="inline-progress" role="status"><span className="spinner" aria-hidden="true" /> {fileAction === "view" ? "Preparing your preview..." : "Preparing your download..."}</div>}
           {downloadError && <div className="inline-alert" role="alert">{downloadError}</div>}
+          {fileAction === "view" && downloadTarget && !canPreviewInBrowser(downloadTarget.mimeType) && <FilePreviewUnavailable />}
           {downloadUrl && downloadTarget && (fileAction === "view" ? (
             <div className="file-preview"><FilePreview file={downloadTarget} url={downloadUrl} onError={() => { setDownloadUrl(""); setDownloadError("The preview could not be loaded. Please try again."); }} /></div>
           ) : <p className="dialog__intro" role="status">Your download has been requested. Check your browser’s downloads. If it did not start, use Save file below.</p>)}

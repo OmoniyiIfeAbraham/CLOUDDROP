@@ -166,24 +166,37 @@ describe("file actions", () => {
   it("uses View to preview an image without initiating a download", async () => {
     const base = createMockFilesRepository();
     const getDownload = vi.fn((id: string) => base.getDownload(id));
-    renderActions({ ...base, getDownload });
+    const getView = vi.fn((id: string) => base.getView(id));
+    renderActions({ ...base, getDownload, getView });
     fireEvent.click(await screen.findByRole("button", { name: `View ${secondFile.originalName}` }));
     const image = await screen.findByRole("img", { name: secondFile.originalName });
-    expect(image).toHaveAttribute("src", `https://example.invalid/download/${secondFile.id}`);
+    expect(image).toHaveAttribute("src", `https://example.invalid/view/${secondFile.id}`);
     expect(screen.getByRole("dialog", { name: "View file" })).toBeVisible();
-    expect(getDownload).toHaveBeenCalledWith(secondFile.id, "inline");
+    expect(getView).toHaveBeenCalledWith(secondFile.id);
+    expect(getDownload).not.toHaveBeenCalled();
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
     fireEvent.error(image);
     expect(await screen.findByRole("alert")).toHaveTextContent("The preview could not be loaded");
   });
 
-  it("does not navigate to unsupported previews such as CSV", async () => {
+  it("explains unsupported previews such as CSV without asking the backend", async () => {
     const csv = { ...firstFile, mimeType: "text/csv", originalName: "records.csv" };
-    renderActions(createMockFilesRepository({ files: [csv] }));
+    const base = createMockFilesRepository({ files: [csv] });
+    const getView = vi.fn((id: string) => base.getView(id));
+    renderActions({ ...base, getView });
     fireEvent.click(await screen.findByRole("button", { name: "View records.csv" }));
     expect(await screen.findByText(/A browser preview is not available/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Download" })).toBeVisible();
     expect(document.querySelector("iframe")).toBeNull();
+    expect(getView).not.toHaveBeenCalled();
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
+  it("explains a preview the backend refuses", async () => {
+    const base = createMockFilesRepository();
+    renderActions({ ...base, getView: async () => { throw new ApiError({ message: "Preview is not supported for this file type", code: "PREVIEW_NOT_SUPPORTED", status: 415 }); } });
+    fireEvent.click(await screen.findByRole("button", { name: `View ${secondFile.originalName}` }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("A preview is not available for this file type. Use Download to save it.");
   });
 
   it("waits for the user to choose an expiry before creating a link", async () => {

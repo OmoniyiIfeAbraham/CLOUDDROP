@@ -9,11 +9,11 @@ import type {
   FileListQuery,
   FilePage,
   FileRecord,
-  FileDisposition,
   ShareResult,
+  ViewResult,
 } from "../model/file.types";
 import { uploadFileHttp } from "../../upload/upload-service";
-import { parseDashboardStats, parseDownloadResult, parseFilePage, parseFilePayload, parseShareResult } from "./file-contracts";
+import { parseDashboardStats, parseDownloadResult, parseFilePage, parseFilePayload, parseShareResult, parseViewResult } from "./file-contracts";
 
 const filePath = (fileId: string): string =>
   "/files/" + encodeURIComponent(fileId);
@@ -44,8 +44,12 @@ export const createHttpFilesRepository = (
     return parseFilePayload(await client.request<unknown>(filePath(fileId)));
   },
 
-  async getDownload(fileId: string, disposition: FileDisposition = "attachment"): Promise<DownloadResult> {
-    return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download", { query: { disposition } }));
+  async getDownload(fileId: string): Promise<DownloadResult> {
+    return parseDownloadResult(await client.request<unknown>(filePath(fileId) + "/download"));
+  },
+
+  async getView(fileId: string): Promise<ViewResult> {
+    return parseViewResult(await client.request<unknown>(filePath(fileId) + "/view"));
   },
   
   async getTemporaryShare(fileId: string, ttlHours = 24): Promise<ShareResult> {

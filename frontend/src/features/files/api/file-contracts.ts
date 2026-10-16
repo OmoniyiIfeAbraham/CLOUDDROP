@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ApiError } from "./api-error";
 import { FILE_CATEGORIES } from "../model/file.types";
-import type { DashboardStats, DownloadResult, FilePage, FileRecord, ShareResult } from "../model/file.types";
+import type { DashboardStats, DownloadResult, FilePage, FileRecord, ShareResult, ViewResult } from "../model/file.types";
 
 const fileRecordSchema = z.object({
   id: z.string().min(1),
@@ -32,6 +32,11 @@ const dashboardStatsSchema = z.object({
 const downloadResultSchema = z.object({
   file: fileRecordSchema.pick({ id: true, originalName: true, mimeType: true, size: true }),
   downloadUrl: z.string(),
+  expiresIn: z.number().positive(),
+});
+const viewResultSchema = z.object({
+  file: fileRecordSchema.pick({ id: true, originalName: true, mimeType: true, size: true }),
+  viewUrl: z.string(),
   expiresIn: z.number().positive(),
 });
 const shareResultSchema = z.object({
@@ -71,6 +76,12 @@ export const parseDashboardStats = (value: unknown): DashboardStats => {
 
 export const parseDownloadResult = (value: unknown): DownloadResult => {
   const result = downloadResultSchema.safeParse(value);
+  if (!result.success) throw invalidResponse();
+  return result.data;
+};
+
+export const parseViewResult = (value: unknown): ViewResult => {
+  const result = viewResultSchema.safeParse(value);
   if (!result.success) throw invalidResponse();
   return result.data;
 };

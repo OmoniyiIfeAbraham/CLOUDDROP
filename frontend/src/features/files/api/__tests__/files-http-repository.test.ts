@@ -139,19 +139,26 @@ describe("HTTP file actions", () => {
     await expect(repository.deleteFile(file.id)).resolves.toBeUndefined();
     expect(calls).toEqual([
       { path: `/api/v1/files/${file.id}`, method: "GET", authorization: "Bearer token-123" },
-      { path: `/api/v1/files/${file.id}/download?disposition=attachment`, method: "GET", authorization: "Bearer token-123" },
+      { path: `/api/v1/files/${file.id}/download`, method: "GET", authorization: "Bearer token-123" },
       { path: `/api/v1/files/${file.id}/share`, method: "POST", authorization: "Bearer token-123" },
       { path: `/api/v1/files/${file.id}`, method: "DELETE", authorization: "Bearer token-123" },
     ]);
   });
 
-  it("requests inline delivery only for the separate View action", async () => {
+  it("asks the separate view endpoint for a preview link", async () => {
     const paths: string[] = [];
     const client = createApiClient({ baseUrl: "/api/v1", getToken: () => "token-123", fetchImpl: async (path: string) => {
-      paths.push(path); return success({ file, downloadUrl: "https://example.invalid/preview", expiresIn: 600 });
+      paths.push(path); return success({ file, viewUrl: "https://example.invalid/preview", expiresIn: 600 });
     } });
-    await createHttpFilesRepository(client).getDownload(file.id, "inline");
-    expect(paths).toEqual([`/api/v1/files/${file.id}/download?disposition=inline`]);
+    const result = await createHttpFilesRepository(client).getView(file.id);
+    expect(paths).toEqual([`/api/v1/files/${file.id}/view`]);
+    expect(result.viewUrl).toBe("https://example.invalid/preview");
+  });
+
+  it("rejects a view response without a view link", async () => {
+    const client = createApiClient({ baseUrl: "/api/v1", getToken: () => "token-123", fetchImpl: async () =>
+      success({ file, downloadUrl: "https://example.invalid/download", expiresIn: 600 }) });
+    await expect(createHttpFilesRepository(client).getView(file.id)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 
   it("sends the chosen share lifetime to the backend", async () => {

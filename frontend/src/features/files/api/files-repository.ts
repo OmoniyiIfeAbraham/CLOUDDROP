@@ -5,14 +5,15 @@ import type {
   FileListQuery,
   FilePage,
   FileRecord,
-  FileDisposition,
   ShareResult,
+  ViewResult,
 } from "../model/file.types";
 
 export interface FilesRepository {
   listFiles(query?: FileListQuery): Promise<FilePage>;
   getFile(fileId: string): Promise<FileRecord>;
-  getDownload(fileId: string, disposition?: FileDisposition): Promise<DownloadResult>;
+  getDownload(fileId: string): Promise<DownloadResult>;
+  getView(fileId: string): Promise<ViewResult>;
   getTemporaryShare(fileId: string, ttlHours?: number): Promise<ShareResult>;
   deleteFile(fileId: string): Promise<void>;
   uploadFile(file: File, onProgress?: (percent: number) => void, signal?: AbortSignal): Promise<FileRecord>;
