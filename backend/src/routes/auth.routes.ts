@@ -3,6 +3,7 @@ import {
   register,
   login,
   me,
+  deleteAccount,
   verifyEmail,
   resendVerification,
   forgotPassword,
@@ -19,5 +20,6 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/login", login);
 router.get("/me", authMiddleware, me);
+router.delete("/me", authMiddleware, deleteAccount);
 
 export default router;

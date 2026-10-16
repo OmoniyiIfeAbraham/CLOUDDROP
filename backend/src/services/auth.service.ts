@@ -25,6 +25,7 @@ import {
   generateToken,
 } from "../utils/auth.utils.js";
 import { ApiError } from "../utils/api-error.js";
+import { deleteFromS3 } from "./s3-delete.service.js";
 
 const databaseUrl = new URL(process.env.DATABASE_URL!);
 databaseUrl.searchParams.delete("sslmode");
@@ -341,6 +342,48 @@ export const loginUser = async (email: string, password: string) => {
     user: publicUser(user),
     token: generateToken(user.id),
   };
+};
+
+export const deleteAccount = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found", "USER_NOT_FOUND");
+  }
+
+  const files = await prisma.file.findMany({
+    where: { userId },
+    select: { s3Key: true },
+  });
+
+  try {
+    for (const file of files) {
+      await deleteFromS3(file.s3Key);
+    }
+  } catch {
+    throw new ApiError(
+      502,
+      "File cleanup was incomplete. Your account has not been deleted; some stored files may already have been removed. Please contact support.",
+      "S3_CLEANUP_FAILED",
+    );
+  }
+
+  try {
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+  } catch {
+    throw new ApiError(
+      500,
+      "Stored files were cleaned up, but the account could not be deleted. Please contact support.",
+      "ACCOUNT_DELETE_FAILED",
+    );
+  }
+
+  return { message: "Account deleted successfully" };
 };
 
 export const getCurrentUser = async (userId: string) => {
