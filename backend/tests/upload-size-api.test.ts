@@ -1,7 +1,18 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { vi, describe, expect, it } from "vitest";
 import app from "../src/server.js";
 import { generateToken } from "../src/utils/auth.utils.js";
+
+
+vi.mock("../src/services/auth.service.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../src/services/auth.service.js")>();
+
+  return {
+    ...actual,
+    getTokenVersionForAuth: vi.fn().mockResolvedValue(0),
+  };
+});
 
 describe("Upload size limit", () => {
   it("returns 400 when an uploaded file exceeds 25 MB", async () => {

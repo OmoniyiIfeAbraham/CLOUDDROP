@@ -33,7 +33,9 @@ describe("Private E2E verification delivery", () => {
     await sendVerificationEmail({ to: recipient, firstName: "QA", code });
     const name = createHash("sha256").update(recipient).digest("hex") + ".json";
     expect(await readdir(directory)).toEqual([name]);
-    expect((await lstat(join(directory, name))).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect((await lstat(join(directory, name))).mode & 0o777).toBe(0o600);
+    }
     expect(JSON.parse(await readFile(join(directory, name), "utf8"))).toEqual({
       to: recipient, code, createdAt: expect.any(Number),
     });
@@ -58,7 +60,9 @@ describe("Private E2E verification delivery", () => {
     await sendPasswordResetEmail({ to: recipient, firstName: "QA", resetLink });
     const id = createHash("sha256").update(recipient).digest("hex");
     expect((await readdir(directory)).sort()).toEqual([`${id}.json`, `${id}.reset.json`].sort());
-    expect((await lstat(join(directory, `${id}.reset.json`))).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect((await lstat(join(directory, `${id}.reset.json`))).mode & 0o777).toBe(0o600);
+    }
     expect(JSON.parse(await readFile(join(directory, `${id}.reset.json`), "utf8"))).toEqual({ to: recipient, resetLink, createdAt: expect.any(Number) });
     expect(fetch).not.toHaveBeenCalled();
     expect(console.info).not.toHaveBeenCalled();
@@ -84,12 +88,14 @@ describe("Private E2E verification delivery", () => {
 
   it("rejects real recipients and a mailbox that other users can read", async () => {
     await expect(sendVerificationEmail({ to: "customer@example.com", firstName: "Customer", code })).rejects.toThrow("disposable QA recipient");
-    await chmod(directory, 0o755);
-    await expect(sendVerificationEmail({ to: recipient, firstName: "QA", code })).rejects.toThrow("private directory");
+    if (process.platform !== "win32") {
+      await chmod(directory, 0o755);
+      await expect(sendVerificationEmail({ to: recipient, firstName: "QA", code })).rejects.toThrow("private directory");
+    }
     expect(await readdir(directory)).toEqual([]);
   });
 
-  it("refuses a symlink used as the mailbox directory", async () => {
+  it.skipIf(process.platform === "win32")("refuses a symlink used as the mailbox directory", async () => {
     const alias = directory + "-alias";
     await symlink(directory, alias);
     vi.stubEnv("CLOUDDROP_E2E_MAILBOX_DIR", alias);

@@ -11,6 +11,7 @@ import {
   resendVerificationEmail,
   requestPasswordReset,
   resetPassword,
+  getTokenVersionForAuth,
 } from "../src/services/auth.service.js";
 import { generateToken } from "../src/utils/auth.utils.js";
 
@@ -23,6 +24,7 @@ vi.mock("../src/services/auth.service.js", () => ({
   resendVerificationEmail: vi.fn(),
   requestPasswordReset: vi.fn(),
   resetPassword: vi.fn(),
+  getTokenVersionForAuth: vi.fn(),
 }));
 
 const mockedRegisterUser = vi.mocked(registerUser);
@@ -33,10 +35,12 @@ const mockedVerifyEmail = vi.mocked(verifyEmail);
 const mockedResendVerificationEmail = vi.mocked(resendVerificationEmail);
 const mockedRequestPasswordReset = vi.mocked(requestPasswordReset);
 const mockedResetPassword = vi.mocked(resetPassword);
+const mockedGetTokenVersionForAuth = vi.mocked(getTokenVersionForAuth);
 
 describe("Authentication API error handling", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedGetTokenVersionForAuth.mockResolvedValue(0);
   });
 
   it("returns 401 for invalid login credentials", async () => {
@@ -187,6 +191,7 @@ describe("Authentication API error handling", () => {
 describe("Password reset API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedGetTokenVersionForAuth.mockResolvedValue(0);
   });
 
   it("returns a generic response for a forgot-password request", async () => {

@@ -21,6 +21,7 @@ model User {
   firstName    String
   lastName     String
   email        String   @unique
+  tokenVersion Int      @default(0)
   passwordHash                 String
   emailVerified                Boolean  @default(false)
   emailVerificationCodeHash    String?
