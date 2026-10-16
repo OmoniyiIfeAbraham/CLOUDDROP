@@ -1,5 +1,7 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, rmdir } from "node:fs/promises";
+import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { readVerificationCode, removeVerificationMessage, requireVerificationBackend, requireVerificationMailbox } from "./verification-mailbox";
 
@@ -19,11 +21,11 @@ export const openPage = async (page: Page, name: "Overview" | "My files" | "Uplo
   await page.getByRole("link", { name, exact: true }).click();
 };
 
-interface LiveProfile { firstName?: string; lastName?: string }
+interface LiveProfile { firstName?: string; lastName?: string; failVerificationDelivery?: boolean }
 
 export const registerLiveAccount = async (page: Page, profile: LiveProfile = {}) => {
   // Fail before creating an account if no private test delivery channel exists.
-  await requireVerificationMailbox();
+  const mailbox = await requireVerificationMailbox();
   const prefix = `qa-${Date.now()}-${randomUUID().slice(0, 8)}`;
   const firstName = profile.firstName ?? "QA";
   const email = `${prefix}@example.test`;
@@ -35,12 +37,22 @@ export const registerLiveAccount = async (page: Page, profile: LiveProfile = {})
   await page.getByLabel("Last name").fill(profile.lastName ?? "Review");
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
-  const registered = page.waitForResponse((r) => isApi(r.url(), /\/api\/v1\/auth\/register$/));
-  await page.getByRole("button", { name: "Create account" }).click();
-  const response = await registered;
-  expect(response.status()).toBe(201);
-  const payload = await response.json();
-  expect(payload.data.token === undefined, "Registration must not return a session token").toBe(true);
+  // An empty private directory at this unique recipient's message path blocks
+  // atomic delivery. This exercises a real backend 503 without email providers,
+  // auth mocks, changed directory permissions or a production fault endpoint.
+  const blockedMessage = join(mailbox, `${createHash("sha256").update(email).digest("hex")}.json`);
+  if (profile.failVerificationDelivery) await mkdir(blockedMessage, { mode: 0o700 });
+  try {
+    const registered = page.waitForResponse((r) => isApi(r.url(), /\/api\/v1\/auth\/register$/));
+    await page.getByRole("button", { name: "Create account" }).click();
+    const response = await registered;
+    expect(response.status()).toBe(profile.failVerificationDelivery ? 503 : 201);
+    const payload = await response.json();
+    if (profile.failVerificationDelivery) expect(payload.error.code).toBe("VERIFICATION_EMAIL_FAILED");
+    expect(payload.data?.token === undefined, "Registration must not return a session token").toBe(true);
+  } finally {
+    if (profile.failVerificationDelivery) await rmdir(blockedMessage);
+  }
   expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token") === null)).toBe(true);
   await expect(page.getByRole("heading", { name: "Verify your email", exact: true })).toBeVisible();
   return { prefix, email, password, firstName, registeredAfter, api: new URL("/api/v1/", page.url()).toString() };

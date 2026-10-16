@@ -262,6 +262,9 @@ svg { flex: none; }
 .auth-submit { width: 100%; margin-top: 4px; }
 .auth-recovery-link { justify-self: end; color: var(--teal); font-size: 13px; font-weight: 700; }
 .auth-recovery-link:hover { text-decoration: underline; }
+.auth-notice { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.auth-recovery-actions { display: grid; gap: 8px; }
+.auth-recovery-actions p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .recovery-message { color: var(--muted); font-size: 14px; line-height: 1.6; }
 .recovery-message p { margin-top: 0; }
 .recovery-message a:not(.button) { color: var(--teal); text-decoration: underline; }
