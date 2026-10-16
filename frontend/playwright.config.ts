@@ -5,7 +5,7 @@ const deployedUrl = process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: "**/downloads.spec.ts",
+  testIgnore: ["**/downloads.spec.ts", "**/password-recovery.spec.ts"],
   retries: 0,
   use: {
     baseURL: deployedUrl ?? "http://127.0.0.1:4173",

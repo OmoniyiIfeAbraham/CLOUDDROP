@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Cloud, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { AuthLayout } from "../components/layout/AuthLayout";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -179,36 +180,12 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   };
 
   return (
-    <div className="auth-shell">
-      <main className="auth-panel">
-        <Link className="brand auth-brand" to="/">
-          <span className="brand__mark">
-            <Cloud size={23} strokeWidth={2.4} />
-          </span>
-          <span>CloudDrop</span>
-        </Link>
-
-        <div className="auth-form-wrap">
-          <div className="auth-kicker">
-            <ShieldCheck size={17} /> Secure workspace
-          </div>
-
-          <h1>
-            {isVerificationPage
-              ? "Verify your email"
-              : isRegister
-                ? "Create your account"
-                : "Welcome back"}
-          </h1>
-
-          <p className="auth-subtitle">
-            {isVerificationPage
-              ? `Enter the six-digit verification code for ${verificationEmail}.`
-              : isRegister
-                ? "Your files, organized and within reach."
-                : "Sign in to get back to your files."}
-          </p>
-
+    <AuthLayout
+      title={isVerificationPage ? "Verify your email" : isRegister ? "Create your account" : "Welcome back"}
+      subtitle={isVerificationPage
+        ? `Enter the six-digit verification code for ${verificationEmail}.`
+        : isRegister ? "Your files, organized and within reach." : "Sign in to get back to your files."}
+    >
           {isVerificationPage ? (
             <>
               <form
@@ -420,6 +397,8 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
                   </div>
                 )}
 
+                {!isRegister && <Link className="auth-recovery-link" to="/forgot-password">Forgot password?</Link>}
+
                 <button
                   className="button button--primary auth-submit"
                   type="submit"
@@ -450,34 +429,6 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
               </p>
             </>
           )}
-        </div>
-
-        <div className="auth-panel__foot">
-          <LockKeyhole size={15} /> Private file storage
-        </div>
-      </main>
-
-      <div className="auth-visual" aria-hidden="true">
-        <div className="auth-visual__top">ONE PLACE FOR EVERY FILE</div>
-        <div className="auth-visual__scene">
-          <div className="auth-visual__file auth-visual__file--one">
-            <span className="auth-visual__file-icon">PDF</span>
-            <span>Project proposal</span>
-            <small>Document</small>
-          </div>
-          <div className="auth-visual__file auth-visual__file--two">
-            <span className="auth-visual__file-icon">IMG</span>
-            <span>Brand assets</span>
-            <small>Image</small>
-          </div>
-          <div className="auth-visual__file auth-visual__file--three">
-            <span className="auth-visual__file-icon">MP4</span>
-            <span>Product demo</span>
-            <small>Video</small>
-          </div>
-        </div>
-        <p>Store what matters. Find it when you need it.</p>
-      </div>
-    </div>
+    </AuthLayout>
   );
 };

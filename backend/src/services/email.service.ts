@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { deliverToTestMailbox } from "./test-mailbox.service.js";
+import { deliverPasswordResetToTestMailbox, deliverToTestMailbox } from "./test-mailbox.service.js";
 
 interface VerificationEmail {
   to: string;
@@ -88,6 +88,8 @@ export const sendPasswordResetEmail = async ({
   firstName,
   resetLink,
 }: PasswordResetEmail): Promise<void> => {
+  if (await deliverPasswordResetToTestMailbox(to, resetLink)) return;
+
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
 

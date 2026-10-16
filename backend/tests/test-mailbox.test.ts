@@ -3,7 +3,7 @@ import { chmod, lstat, mkdtemp, readFile, readdir, rm, symlink } from "node:fs/p
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendVerificationEmail } from "../src/services/email.service.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../src/services/email.service.js";
 import { validateEnv } from "../src/utils/env.utils.js";
 
 describe("Private E2E verification delivery", () => {
@@ -50,6 +50,28 @@ describe("Private E2E verification delivery", () => {
     const messages = await Promise.all((await readdir(directory)).map(async (name) => JSON.parse(await readFile(join(directory, name), "utf8"))));
     expect(messages).toHaveLength(2);
     expect(messages.find(message => message.to === recipient).code).toBe("345678");
+  });
+
+  it("delivers reset links privately without overwriting verification messages or using Resend/logging", async () => {
+    const resetLink = "http://127.0.0.1:4177/reset-password?token=disposable-test-token";
+    await sendVerificationEmail({ to: recipient, firstName: "QA", code });
+    await sendPasswordResetEmail({ to: recipient, firstName: "QA", resetLink });
+    const id = createHash("sha256").update(recipient).digest("hex");
+    expect((await readdir(directory)).sort()).toEqual([`${id}.json`, `${id}.reset.json`].sort());
+    expect((await lstat(join(directory, `${id}.reset.json`))).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(await readFile(join(directory, `${id}.reset.json`), "utf8"))).toEqual({ to: recipient, resetLink, createdAt: expect.any(Number) });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(console.info).not.toHaveBeenCalled();
+  });
+
+  it("refuses reset test delivery outside the isolated environment and to real recipients", async () => {
+    const message = { to: recipient, firstName: "QA", resetLink: "http://127.0.0.1/reset-password?token=test" };
+    vi.stubEnv("NODE_ENV", "production");
+    await expect(sendPasswordResetEmail(message)).rejects.toThrow("NODE_ENV=test");
+    vi.stubEnv("NODE_ENV", "test");
+    await expect(sendPasswordResetEmail({ ...message, to: "customer@example.com" })).rejects.toThrow("disposable QA recipient");
+    expect(await readdir(directory)).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each(["production", "development"])("refuses test delivery and startup in %s", async (mode) => {

@@ -63,6 +63,9 @@ jobs:
       - name: Verify download UX in Chromium and WebKit
         run: npm run test:downloads
 
+      - name: Verify password recovery in Chromium and WebKit
+        run: npm run test:recovery
+
       - name: Save browser screenshots and failure traces
         if: always()
         uses: actions/upload-artifact@v7
@@ -71,6 +74,7 @@ jobs:
           path: |
             frontend/test-results/
             frontend/test-results-downloads/
+            frontend/test-results-recovery/
           retention-days: 7
           if-no-files-found: ignore
 
