@@ -4,7 +4,7 @@
 
 CloudDrop uses:
 
-GitHub → GitHub Actions → GHCR → EC2 → Docker Compose → Health Check
+GitHub â†’ GitHub Actions â†’ GHCR â†’ EC2 â†’ Docker Compose â†’ Health Check
 
 The Docker images are published to:
 
@@ -13,14 +13,27 @@ ghcr.io/omoniyiifeabraham/clouddrop-frontend
 
 Images are tagged with both:
 
-- latest — latest deployment image
-- Git commit SHA — specific version for tracking and rollback
+- latest â€” latest deployment image
+- Git commit SHA â€” specific version for tracking and rollback
+
+### Independent automatic releases
+
+A push/merge to `main` that changes `frontend/**` runs frontend validation, image publishing and frontend deployment. A `backend/**` change does the same for the backend. Neither waits for the other component's CI. Shared runtime changes (`scripts/**`, `nginx/**`, `docker-compose.prod.yml` and the deployment workflow) trigger both build workflows. Failed checks stop the affected component's release.
+
+The deployment workflow accepts a successful main-branch push build from this repository, checks out that exact commit and sends a non-secret runtime bundle through SSM. The bundle contains production Compose, Nginx config and operational scripts. It never contains the EC2 `.env` or certificates. `deploy-release.sh` installs these files before running the component deployment and public HTTPS verification.
+
+The changed component receives its commit-SHA image. The other component's image reference is read from its existing container and preserved. If the other container is missing, use the manual workflow with both image tags to bootstrap the deployment.
+
+EC2 needs Linux `flock`. A host lock serializes release execution. Separate successful run-number markers in `/opt/clouddrop/.deployment-state/` prevent late completion of an older build from undoing a newer release of the same component. Staging bundles remain in `/opt/clouddrop/.release-*` for inspection. Operators should coordinate manual rollbacks with active releases.
+
+GitHub Actions shows the deployment job after the relevant build succeeds. Its SSM result and output identify deployed image tags; a green build by itself is not proof of a successful deployment. Database migrations are not automatic and require release preparation. The pipeline changes must first be pushed/merged to `main` before this flow can run.
 
 ## 2. Production Files
 
 Production deployment uses:
 
 - docker-compose.prod.yml
+- scripts/deploy-release.sh
 - scripts/deploy.sh
 - scripts/verify-deployment.sh
 - scripts/rollback.sh
@@ -52,7 +65,7 @@ AWS credentials are not hardcoded. The EC2 IAM role provides AWS access.
 Internet
    |
    v
-Nginx :80
+Nginx :443 (HTTPS; port 80 redirects)
    |
    v
 CloudDrop Backend :5000
@@ -63,9 +76,7 @@ CloudDrop Backend :5000
 
 The backend listens on port 5000.
 
-Nginx provides the public HTTP entry point on port 80.
-
-HTTPS on port 443 will be configured when the production domain and SSL setup are ready.
+Nginx terminates HTTPS on port 443 using the mounted certificates. Port 80 redirects to HTTPS except ACME challenges. `/` routes to the frontend container, while `/api/v1/`, `/s/` and `/health` route to the backend.
 
 ## 5. Deployment
 
@@ -75,8 +86,8 @@ From the CloudDrop application directory:
 
 The deployment script:
 
-1. Pulls the backend and frontend images (BACKEND_IMAGE and FRONTEND_IMAGE, latest by default). A failed pull stops the deployment before any container changes.
-2. Starts or restarts the backend and frontend.
+1. Pulls only the selected component image for automatic releases, or both images for a manual/full deployment. A failed pull stops before container changes.
+2. Starts the selected service with `--no-deps` for a component release, preserving the other service. A full deployment starts both services.
 3. Waits for the backend and frontend health checks.
 4. Tests the Nginx config, then restarts Nginx so it picks up config changes and the new containers.
 5. Reports success when everything is healthy.

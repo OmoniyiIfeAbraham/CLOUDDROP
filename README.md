@@ -94,21 +94,21 @@ Presigned URLs are generated locally by the backend using AWS credentials; URL g
 
 ```text
 CLOUDDROP/
-├── frontend/                   # React application, browser tests and static-server image
-│   ├── src/                    # Pages, components, auth, file and upload features
-│   ├── e2e/                    # Playwright scenarios
-│   └── docs/                   # Frontend flows, QA evidence and integration notes
-├── backend/                    # Express API and backend tests
-│   ├── src/                    # Routes, controllers, middleware, services and utilities
-│   ├── prisma/                 # PostgreSQL schema and SQL migrations
-│   ├── prisma7.config.ts       # Explicit Prisma CLI configuration
-│   └── certs/                  # RDS certificate authority bundle used in production
-├── nginx/                      # Edge reverse-proxy configuration
-├── scripts/                    # Deployment, verification and rollback scripts
-├── .github/workflows/          # Backend CI, frontend CI and deployment workflows
-├── docs/                       # Project, infrastructure and deployment documentation
-├── docker-compose.yml          # Earlier backend/proxy stack, not the local quick start
-└── docker-compose.prod.yml     # Production backend, frontend and edge Nginx stack
+â”œâ”€â”€ frontend/                   # React application, browser tests and static-server image
+â”‚   â”œâ”€â”€ src/                    # Pages, components, auth, file and upload features
+â”‚   â”œâ”€â”€ e2e/                    # Playwright scenarios
+â”‚   â””â”€â”€ docs/                   # Frontend flows, QA evidence and integration notes
+â”œâ”€â”€ backend/                    # Express API and backend tests
+â”‚   â”œâ”€â”€ src/                    # Routes, controllers, middleware, services and utilities
+â”‚   â”œâ”€â”€ prisma/                 # PostgreSQL schema and SQL migrations
+â”‚   â”œâ”€â”€ prisma7.config.ts       # Explicit Prisma CLI configuration
+â”‚   â””â”€â”€ certs/                  # RDS certificate authority bundle used in production
+â”œâ”€â”€ nginx/                      # Edge reverse-proxy configuration
+â”œâ”€â”€ scripts/                    # Deployment, verification and rollback scripts
+â”œâ”€â”€ .github/workflows/          # Backend CI, frontend CI and deployment workflows
+â”œâ”€â”€ docs/                       # Project, infrastructure and deployment documentation
+â”œâ”€â”€ docker-compose.yml          # Earlier backend/proxy stack, not the local quick start
+â””â”€â”€ docker-compose.prod.yml     # Production backend, frontend and edge Nginx stack
 ```
 
 ## Run locally
@@ -378,7 +378,7 @@ The configured EC2 deployment expects:
 - A reachable PostgreSQL database, applied migrations, an S3 bucket and working AWS credentials/permissions.
 - Resend credentials and correct production `FRONTEND_URL` / `PUBLIC_APP_URL` origins.
 - DNS pointing to the intended host, Let's Encrypt certificates available under `/etc/letsencrypt`, and the ACME webroot mounted by Compose.
-- Access to pull the selected GHCR images, plus an SSM-ready instance and deployment IAM permissions when using Actions.
+- Access to pull the selected GHCR images, plus an SSM-ready instance, deployment IAM permissions, and the Linux `flock` utility when using Actions.
 
 On the prepared Linux EC2 host, the operator scripts are:
 
@@ -387,7 +387,7 @@ On the prepared Linux EC2 host, the operator scripts are:
 ./scripts/verify-deployment.sh
 ```
 
-The deployment script uses `docker-compose.prod.yml`, pulls both images, starts the three containers, waits for frontend/backend health, tests Nginx configuration and restarts the edge proxy. **It does not synchronize the EC2 checkout or apply production database migrations.** Those steps need separate release preparation. The verification script checks backend liveness directly on the host; verify public HTTPS and actual database/S3/email flows separately.
+Directly running `deploy.sh` defaults to deploying both images. Automatic releases call `deploy-release.sh` from a runtime bundle checked out at the image commit: it preserves the other running image, synchronizes the production Compose file, Nginx configuration and operational scripts, and deploys only the changed component. The host `.env` and certificates are preserved. Releases use a host `flock` lock and record successful run numbers separately for frontend/backend so an older completion cannot undo a newer release of that component. Production database migrations remain a separate release-preparation step. Verification checks both image references, container health and the public HTTPS `/health` endpoint; database/S3/email readiness still needs separate testing.
 
 The root `docker-compose.yml` is an earlier backend/proxy setup. It does not provide a complete frontend development stack, while the shared Nginx configuration now expects HTTPS and a frontend upstream. Use the native local setup above for development rather than assuming `docker compose up` is a complete quick start.
 
@@ -396,26 +396,25 @@ See the [deployment guide](docs/DEPLOYMENT.md) and [AWS infrastructure notes](do
 ## CICD workflow
 
 ```text
-GitHub main push
-    ├── Backend CI: install, Prisma test migrations, build, tests, Docker image
-    └── Frontend CI: type checks, lint, unit tests, build, browser tests
-                  ↓
-         Publish frontend/backend images to GHCR
-                  ↓
-         Both workflows successful for the same main commit
-                  ↓
-         GitHub OIDC assumes AWS deployment role
-                  ↓
-         AWS Systems Manager Run Command on EC2
-                  ↓
-         Pull images, Docker Compose release, health verification
+Push or merge to main
+    ├── frontend/** change → frontend checks → build/publish frontend SHA image
+    │                                             ↓
+    │                                     deploy frontend to EC2
+    └── backend/** change  → backend checks  → build/publish backend SHA image
+                                                  ↓
+                                          deploy backend to EC2
 ```
 
-- **Automatic deployment is configured:** a merge/push to `main` runs both CI workflows; the deployment resolver proceeds only after both succeed for the same commit SHA.
-- Main images receive commit-SHA and `latest` tags. SHA tags allow a release to select matching frontend/backend versions.
-- Manual `workflow_dispatch` is also available with independently selected image tags.
-- `scripts/rollback.sh` provides manual backend-image rollback, not automatic or full-stack rollback. Its HTTP health check predates the HTTPS redirect and should be reviewed before relying on it.
-- Configuration is defined in [backend CI](.github/workflows/ci.yml), [frontend CI](.github/workflows/frontend.yml) and [deployment](.github/workflows/deploy.yml). Successful live execution depends on the configured GitHub/AWS permissions and host prerequisites.
+- **Frontend and backend deploy independently.** Each successful main-branch build triggers its own deployment without waiting for the other component's CI.
+- Changes to shared `scripts/**`, `nginx/**`, production Compose or the deployment workflow trigger both build workflows. Documentation-only changes do not trigger production releases.
+- A failed validation/build does not deploy that component. The deployment workflow accepts only successful push builds from this repository's `main` branch.
+- The component uses its exact commit-SHA image. The other component keeps its currently deployed image instead of being replaced by `latest`.
+- GitHub uses OIDC to assume the deployment role, then AWS Systems Manager runs the release on EC2. Docker changes are serialized on the host with `flock`, without discarding one component's queued release when the other finishes.
+- The release includes non-secret runtime files from the image commit, so an old EC2 checkout does not leave deployment scripts or Nginx configuration behind. Secrets and certificates stay on EC2.
+- Manual `workflow_dispatch` on `main` can deploy an explicit backend/frontend image pair, including the initial bootstrap when there is no counterpart container yet.
+- `scripts/rollback.sh` supports manual rollback of an explicit backend/frontend image pair and checks public HTTPS. It is not automatic rollback.
+- See [backend CI](.github/workflows/ci.yml), [frontend CI](.github/workflows/frontend.yml) and [deployment](.github/workflows/deploy.yml). The tests in `scripts/tests/deployment.test.mjs` exercise releases with mocked commands; actual AWS permissions and deployment success still need live verification.
+- A local commit does not start Actions. After the pipeline changes are pushed or merged into `main`, later frontend/backend pushes follow this flow. Allow time for validation, image publishing and deployment, then reload the page.
 
 ## Security and current limitations
 

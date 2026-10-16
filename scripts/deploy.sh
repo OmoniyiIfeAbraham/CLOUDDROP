@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 echo "Starting CloudDrop deployment..."
 
@@ -10,20 +10,23 @@ FRONTEND="${FRONTEND_IMAGE:-ghcr.io/omoniyiifeabraham/clouddrop-frontend:latest}
 echo "Deployment image: ${IMAGE}"
 echo "Frontend image: ${FRONTEND}"
 
-# Pull both images before touching the running containers, so a failed pull
-# leaves the current deployment in place.
-echo "Pulling backend image..."
-docker pull "$IMAGE"
-
-echo "Pulling frontend image..."
-docker pull "$FRONTEND"
-
-echo "Starting backend, frontend and Nginx..."
+COMPONENT="${DEPLOY_COMPONENT:-all}"
+case "$COMPONENT" in
+  frontend) docker pull "$FRONTEND" ;;
+  backend) docker pull "$IMAGE" ;;
+  all) docker pull "$IMAGE"; docker pull "$FRONTEND" ;;
+  *) echo "Invalid DEPLOY_COMPONENT: $COMPONENT" >&2; exit 1 ;;
+esac
 
 export BACKEND_IMAGE="$IMAGE"
 export FRONTEND_IMAGE="$FRONTEND"
 
-docker compose -f docker-compose.prod.yml up -d backend frontend nginx
+if [ "$COMPONENT" = all ]; then
+  docker compose -f docker-compose.prod.yml up -d backend frontend nginx
+else
+  # Preserve the other application's running image and service.
+  docker compose -f docker-compose.prod.yml up -d --no-deps "$COMPONENT"
+fi
 
 echo "Waiting for backend health check..."
 
@@ -80,6 +83,7 @@ echo "Testing Nginx config..."
 docker compose -f docker-compose.prod.yml run --rm --no-deps nginx nginx -t
 
 echo "Restarting Nginx..."
+docker compose -f docker-compose.prod.yml up -d --no-deps nginx
 docker compose -f docker-compose.prod.yml restart nginx
 
 echo "Checking Nginx..."
