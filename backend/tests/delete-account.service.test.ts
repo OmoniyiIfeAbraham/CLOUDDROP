@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   deleteFile: vi.fn(),
   deleteUser: vi.fn(),
   deleteFromS3: vi.fn(),
+  comparePassword: vi.fn(),
 }));
 
 vi.mock("../src/generated/prisma/client.js", () => ({
@@ -34,6 +35,7 @@ vi.mock("../src/services/s3-delete.service.js", () => ({
 describe("deleteAccount service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.comparePassword.mockResolvedValue(true);
     vi.stubEnv(
       "DATABASE_URL",
       "postgresql://test:test@localhost:5432/cloud_drop_test",
@@ -48,7 +50,7 @@ describe("deleteAccount service", () => {
     vi.resetModules();
     const { deleteAccount } = await import("../src/services/auth.service.js");
 
-    await expect(deleteAccount("missing-user")).rejects.toMatchObject({
+    await expect(deleteAccount("missing-user", "correct-password")).rejects.toMatchObject({
       statusCode: 404,
       code: "USER_NOT_FOUND",
     });
@@ -61,7 +63,7 @@ describe("deleteAccount service", () => {
   it("deletes stored files before deleting the user", async () => {
     const order: string[] = [];
 
-    mocks.findUnique.mockResolvedValue({ id: "user-1" });
+    mocks.findUnique.mockResolvedValue({ id: "user-1", passwordHash: "hashed-password" });
     mocks.findMany.mockResolvedValue([
       { id: "file-1", s3Key: "uploads/file-one.pdf" },
       { id: "file-2", s3Key: "uploads/file-two.png" },
@@ -75,13 +77,13 @@ describe("deleteAccount service", () => {
     });
     mocks.deleteUser.mockImplementation(async () => {
       order.push("user");
-      return { id: "user-1" };
+      return { id: "user-1", passwordHash: "hashed-password" };
     });
 
     vi.resetModules();
     const { deleteAccount } = await import("../src/services/auth.service.js");
 
-    await expect(deleteAccount("user-1")).resolves.toEqual({
+    await expect(deleteAccount("user-1", "correct-password")).resolves.toEqual({
       message: "Account deleted successfully",
     });
 
@@ -113,7 +115,7 @@ describe("deleteAccount service", () => {
   });
 
   it("does not delete the user if S3 cleanup fails", async () => {
-    mocks.findUnique.mockResolvedValue({ id: "user-1" });
+    mocks.findUnique.mockResolvedValue({ id: "user-1", passwordHash: "hashed-password" });
     mocks.findMany.mockResolvedValue([
       { id: "file-1", s3Key: "uploads/file-one.pdf" },
       { id: "file-2", s3Key: "uploads/file-two.png" },
@@ -125,7 +127,7 @@ describe("deleteAccount service", () => {
     vi.resetModules();
     const { deleteAccount } = await import("../src/services/auth.service.js");
 
-    await expect(deleteAccount("user-1")).rejects.toMatchObject({
+    await expect(deleteAccount("user-1", "correct-password")).rejects.toMatchObject({
       statusCode: 502,
       code: "S3_CLEANUP_FAILED",
     });
@@ -139,7 +141,7 @@ describe("deleteAccount service", () => {
   });
 
   it("does not delete the user if a file database record cannot be deleted", async () => {
-    mocks.findUnique.mockResolvedValue({ id: "user-1" });
+    mocks.findUnique.mockResolvedValue({ id: "user-1", passwordHash: "hashed-password" });
     mocks.findMany.mockResolvedValue([
       { id: "file-1", s3Key: "uploads/file-one.pdf" },
     ]);
@@ -151,7 +153,7 @@ describe("deleteAccount service", () => {
     vi.resetModules();
     const { deleteAccount } = await import("../src/services/auth.service.js");
 
-    await expect(deleteAccount("user-1")).rejects.toMatchObject({
+    await expect(deleteAccount("user-1", "correct-password")).rejects.toMatchObject({
       statusCode: 500,
       code: "ACCOUNT_DELETE_FAILED",
     });
@@ -166,14 +168,14 @@ describe("deleteAccount service", () => {
   });
 
   it("reports an error if the database cannot delete the user", async () => {
-    mocks.findUnique.mockResolvedValue({ id: "user-1" });
+    mocks.findUnique.mockResolvedValue({ id: "user-1", passwordHash: "hashed-password" });
     mocks.findMany.mockResolvedValue([]);
     mocks.deleteUser.mockRejectedValue(new Error("Database unavailable"));
 
     vi.resetModules();
     const { deleteAccount } = await import("../src/services/auth.service.js");
 
-    await expect(deleteAccount("user-1")).rejects.toMatchObject({
+    await expect(deleteAccount("user-1", "correct-password")).rejects.toMatchObject({
       statusCode: 500,
       code: "ACCOUNT_DELETE_FAILED",
     });
@@ -182,4 +184,34 @@ describe("deleteAccount service", () => {
       where: { id: "user-1" },
     });
   });
+  it("rejects an incorrect current password without deleting anything", async () => {
+    mocks.findUnique.mockResolvedValue({
+      id: "user-1",
+      passwordHash: "hashed-password",
+    });
+    mocks.comparePassword.mockResolvedValue(false);
+
+    vi.resetModules();
+    const { deleteAccount } = await import("../src/services/auth.service.js");
+
+    await expect(
+      deleteAccount("user-1", "wrong-password"),
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      code: "INVALID_CREDENTIALS",
+    });
+
+    expect(mocks.findMany).not.toHaveBeenCalled();
+    expect(mocks.deleteFromS3).not.toHaveBeenCalled();
+    expect(mocks.deleteFile).not.toHaveBeenCalled();
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+});
+
+
+vi.mock("../src/utils/auth.utils.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/utils/auth.utils.js")>();
+  return { ...actual, comparePassword: mocks.comparePassword };
+
+
 });

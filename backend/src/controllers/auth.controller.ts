@@ -17,6 +17,7 @@ import {
   resendVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  deleteAccountSchema,
 } from "../utils/auth.validation.js";
 
 export const register = async (req: Request, res: Response) => {
@@ -129,7 +130,21 @@ export const deleteAccount = async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await deleteAccountService(userId);
+  const parsedBody = deleteAccountSchema.safeParse(req.body);
+
+  if (!parsedBody.success) {
+    res.status(400).json({
+      success: false,
+      message: parsedBody.error.issues[0]?.message ?? "Current password is required",
+      error: { code: "VALIDATION_ERROR" },
+    });
+    return;
+  }
+
+  const result = await deleteAccountService(
+    userId,
+    parsedBody.data.currentPassword,
+  );
 
   res.status(200).json({
     success: true,

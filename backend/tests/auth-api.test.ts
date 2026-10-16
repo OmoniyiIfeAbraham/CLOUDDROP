@@ -298,12 +298,13 @@ describe("DELETE /api/v1/auth/me", () => {
 
     const response = await request(app)
       .delete("/api/v1/auth/me")
-      .set("Authorization", `Bearer ${token}`);
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "correct-password" });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe("Account deleted successfully");
-    expect(mockedDeleteAccount).toHaveBeenCalledWith("account-user");
+    expect(mockedDeleteAccount).toHaveBeenCalledWith("account-user", "correct-password");
   });
 
   it("returns an error when S3 file cleanup fails", async () => {
@@ -319,9 +320,10 @@ describe("DELETE /api/v1/auth/me", () => {
 
     const response = await request(app)
       .delete("/api/v1/auth/me")
-      .set("Authorization", `Bearer ${token}`);
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "correct-password" });
 
     expect(response.status).toBe(502);
-    expect(mockedDeleteAccount).toHaveBeenCalledWith("account-user");
+    expect(mockedDeleteAccount).toHaveBeenCalledWith("account-user", "correct-password");
   });
 });
