@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Docker image tag to deploy"
+        description: "Backend Docker image tag to deploy"
         required: true
         default: "latest"
       frontend_image_tag:
@@ -12,13 +12,89 @@ on:
         required: true
         default: "latest"
 
+  workflow_run:
+    workflows:
+      - Backend CI
+      - Frontend CI and Image Build
+    types:
+      - completed
+    branches:
+      - main
+
 permissions:
   id-token: write
   contents: read
   packages: read
+  actions: read
+
+concurrency:
+  group: clouddrop-production-deploy
+  cancel-in-progress: false
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.images.outputs.ready }}
+      backend_tag: ${{ steps.images.outputs.backend_tag }}
+      frontend_tag: ${{ steps.images.outputs.frontend_tag }}
+
+    steps:
+      - name: Resolve image tags
+        id: images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          TRIGGER_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_BACKEND_TAG: ${{ inputs.image_tag }}
+          INPUT_FRONTEND_TAG: ${{ inputs.frontend_image_tag }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "backend_tag=$INPUT_BACKEND_TAG" >> "$GITHUB_OUTPUT"
+            echo "frontend_tag=$INPUT_FRONTEND_TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$TRIGGER_CONCLUSION" != "success" ] || [ "$TRIGGER_BRANCH" != "main" ]; then
+            echo "This workflow run did not succeed on main. Skipping deployment."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SHA="$TRIGGER_SHA"
+
+          backend_runs=$(gh api \
+            "repos/$REPOSITORY/actions/workflows/ci.yml/runs?branch=main&head_sha=$SHA&status=completed&per_page=100")
+
+          frontend_runs=$(gh api \
+            "repos/$REPOSITORY/actions/workflows/frontend.yml/runs?branch=main&head_sha=$SHA&status=completed&per_page=100")
+
+          backend_ok=$(echo "$backend_runs" | jq -r --arg sha "$SHA" \
+            '[.workflow_runs[] | select(.head_sha == $sha and .head_branch == "main" and .conclusion == "success")] | length')
+
+          frontend_ok=$(echo "$frontend_runs" | jq -r --arg sha "$SHA" \
+            '[.workflow_runs[] | select(.head_sha == $sha and .head_branch == "main" and .conclusion == "success")] | length')
+
+          if [ "$backend_ok" -eq 0 ] || [ "$frontend_ok" -eq 0 ]; then
+            echo "Both image-build workflows are not yet successful for $SHA."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Both image-build workflows succeeded for $SHA."
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "backend_tag=$SHA" >> "$GITHUB_OUTPUT"
+          echo "frontend_tag=$SHA" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: resolve
+    if: needs.resolve.outputs.ready == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -30,8 +106,8 @@ jobs:
 
       - name: Deploy to EC2 through SSM
         env:
-          IMAGE_TAG: ${{ inputs.image_tag }}
-          FRONTEND_IMAGE_TAG: ${{ inputs.frontend_image_tag }}
+          IMAGE_TAG: ${{ needs.resolve.outputs.backend_tag }}
+          FRONTEND_IMAGE_TAG: ${{ needs.resolve.outputs.frontend_tag }}
           INSTANCE_ID: i-057c4c651255b57e7
           AWS_REGION: eu-west-1
         run: |
