@@ -3,6 +3,7 @@ import {
   registerUser,
   loginUser,
   getCurrentUser,
+  deleteAccount as deleteAccountService,
   verifyEmail as verifyEmailService,
   resendVerificationEmail,
   requestPasswordReset,
@@ -115,6 +116,26 @@ export const me = async (req: Request, res: Response) => {
   });
 };
 
+
+export const deleteAccount = async (req: Request, res: Response) => {
+  const userId = (req as Request & { userId?: string }).userId;
+
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      message: "Authentication required",
+      error: { code: "UNAUTHORIZED" },
+    });
+    return;
+  }
+
+  const result = await deleteAccountService(userId);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+  });
+};
 
 export const forgotPassword = async (req: Request, res: Response) => {
   const { email } = validateRequest(forgotPasswordSchema, req.body);

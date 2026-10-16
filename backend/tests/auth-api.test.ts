@@ -6,6 +6,7 @@ import {
   registerUser,
   loginUser,
   getCurrentUser,
+  deleteAccount,
   verifyEmail,
   resendVerificationEmail,
   requestPasswordReset,
@@ -17,6 +18,7 @@ vi.mock("../src/services/auth.service.js", () => ({
   registerUser: vi.fn(),
   loginUser: vi.fn(),
   getCurrentUser: vi.fn(),
+  deleteAccount: vi.fn(),
   verifyEmail: vi.fn(),
   resendVerificationEmail: vi.fn(),
   requestPasswordReset: vi.fn(),
@@ -26,6 +28,7 @@ vi.mock("../src/services/auth.service.js", () => ({
 const mockedRegisterUser = vi.mocked(registerUser);
 const mockedLoginUser = vi.mocked(loginUser);
 const mockedGetCurrentUser = vi.mocked(getCurrentUser);
+const mockedDeleteAccount = vi.mocked(deleteAccount);
 const mockedVerifyEmail = vi.mocked(verifyEmail);
 const mockedResendVerificationEmail = vi.mocked(resendVerificationEmail);
 const mockedRequestPasswordReset = vi.mocked(requestPasswordReset);
@@ -269,5 +272,51 @@ describe("Password reset API", () => {
       "sample-valid-token",
       "long-enough-password",
     );
+  });
+});
+
+
+describe("DELETE /api/v1/auth/me", () => {
+  it("rejects requests without authentication", async () => {
+    const response = await request(app).delete("/api/v1/auth/me");
+
+    expect(response.status).toBe(401);
+    expect(mockedDeleteAccount).not.toHaveBeenCalled();
+  });
+
+  it("deletes the authenticated user's account", async () => {
+    mockedDeleteAccount.mockResolvedValue({
+      message: "Account deleted successfully",
+    });
+
+    const token = generateToken("account-user");
+
+    const response = await request(app)
+      .delete("/api/v1/auth/me")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe("Account deleted successfully");
+    expect(mockedDeleteAccount).toHaveBeenCalledWith("account-user");
+  });
+
+  it("returns an error when S3 file cleanup fails", async () => {
+    mockedDeleteAccount.mockRejectedValue(
+      new ApiError(
+        502,
+        "File cleanup was incomplete.",
+        "S3_CLEANUP_FAILED",
+      ),
+    );
+
+    const token = generateToken("account-user");
+
+    const response = await request(app)
+      .delete("/api/v1/auth/me")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(502);
+    expect(mockedDeleteAccount).toHaveBeenCalledWith("account-user");
   });
 });
