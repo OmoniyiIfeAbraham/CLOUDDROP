@@ -63,6 +63,8 @@ test("duplicate registration and unverified login both offer verification recove
   await expect(page.getByRole("button", { name: "Finish email verification" })).toBeVisible();
   await audit(page);
   await page.getByRole("link", { name: "Sign in instead" }).click();
+  // The register form has the same fields, so wait for sign-in before typing.
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveValue(user.email);
   await page.getByLabel("Password", { exact: true }).fill("Fixture-password!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
