@@ -266,7 +266,7 @@ describe("email verification", () => {
     renderAuthPage("register", { register });
     await completeRegistration(false);
     fireEvent.click(await screen.findByRole("link", { name: "Sign in instead" }));
-    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: /^Welcome back\b/ })).toBeVisible();
     expect(screen.getByLabelText("Email address")).toHaveValue("ada@example.com");
     expect(screen.getByLabelText("Password", { exact: true })).toHaveValue("");
   });
@@ -321,7 +321,7 @@ describe("email verification", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Email already verified" })).toHaveFocus());
     expect(sessionStorage.getItem("clouddrop.access-token") === null).toBe(true);
     fireEvent.click(screen.getByRole("link", { name: "Sign in" }));
-    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: /^Welcome back\b/ })).toBeVisible();
   });
 
   it.each(["INVALID_VERIFICATION_CODE", "VERIFICATION_ATTEMPTS_EXCEEDED"])("gives actionable code feedback for %s", async (code) => {
