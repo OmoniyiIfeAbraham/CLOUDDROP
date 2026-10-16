@@ -154,17 +154,18 @@ sequenceDiagram
     U->>A: Click View
     alt Not a previewable type
         A-->>U: "A browser preview is not available" with a Download button (no request sent)
-    else PDF, JPEG, PNG, GIF or WebP
+    else A supported image, PDF, text, audio or video type
         A->>B: GET /files/:id/view
         B-->>A: viewUrl (signed, valid 10 minutes)
-        A->>S: Load the image or PDF in the preview dialog
+        A->>S: Load the file using its original signed URL
         S-->>U: File shown inside CloudDrop
     end
 ```
 
-- Only **PDF, JPEG, PNG, GIF and WebP** files are previewed, because those are the types the backend creates view links for. A PDF also needs the browser's built-in PDF viewer, which some mobile browsers lack.
+- The preview types match the merged backend: **PDF; JPEG, PNG, GIF and WebP; plain text, CSV, Markdown, JSON, YAML and SQL; MP4, MPEG and WebM video; MP3, WAV and Ogg audio**. A PDF also needs the browser's built-in viewer. Audio/video use native controls without autoplay; codec support depends on the browser.
+- Text is displayed as literal content, so HTML or scripts in a file are not executed. Only the first 1 MiB is read for large text files, with an explicit truncation notice. The request is cancelled when the dialog closes. Fetching text requires the storage CORS policy to allow GET from the frontend origin; bearer tokens and cookies are not sent to storage.
 - For any other type, the dialog explains that a preview isn't available and offers Download, without contacting the backend.
-- If the backend refuses (`415 PREVIEW_NOT_SUPPORTED`), the link expires, or loading fails, the dialog shows a message with a retry.
+- If the backend refuses (`415 PREVIEW_NOT_SUPPORTED`), the link expires, or loading fails, the dialog shows a message with retry and Download actions. View never navigates to a text URL that could unexpectedly start a download.
 
 ### Download
 

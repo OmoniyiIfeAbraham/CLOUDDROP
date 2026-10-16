@@ -40,7 +40,7 @@ npm run test:downloads
 npm run test:recovery
 ```
 
-Playwright also needs the host's Chromium system libraries. The browser suite runs against the demo Vite server and checks desktop and mobile flows. The production build is emitted to `frontend/dist/`.
+Playwright also needs the host's Chromium system libraries. The browser suite starts its own demo Vite server, explicitly enables mock mode regardless of local API settings, and checks desktop and mobile flows. Port 4173 must be free. The production build is emitted to `frontend/dist/`.
 
 Live registration now completes email verification before receiving a session token. See [live email verification setup](docs/live-email-verification.md) for the isolated backend, disposable database and private code-delivery transport. The mock code `123456` is never used by live tests. Existing demo/live skip conditions remain unchanged.
 
@@ -70,7 +70,21 @@ The opt-in runner uses desktop/mobile Chromium and WebKit, one worker, unique QA
 
 ## View and download behavior
 
-View and Download are separate actions on the dashboard, library and file details page. View previews PDF, JPEG, PNG, GIF and WebP files, using a signed link from `GET /files/:id/view`. These are the types the backend signs for inline viewing, and a PDF also needs the browser's built-in PDF viewer. Other formats show an explanation and offer Download without contacting the backend. Download starts saving automatically after receiving a fresh signed attachment link from `GET /files/:id/download`. A Save file link remains available if the browser blocks the automatic action. Preparation can be cancelled, errors retried, and expired links renewed.
+View and Download are separate actions on the dashboard, library and file details page. View uses `GET /files/:id/view` for the types supported by the merged backend: PDF; JPEG, PNG, GIF and WebP; plain text, CSV, Markdown, JSON, YAML and SQL; MP4, MPEG and WebM video; and MP3, WAV and Ogg audio. PDFs require the browser's built-in viewer. Audio and video use native controls without autoplay; unsupported codecs offer retry and Download. Office files, archives and other unsupported formats offer Download without requesting a preview link.
+
+Text is fetched from the original signed URL with credentials omitted and rendered as literal text, including markup contained in CSV or Markdown. The preview reads at most 1 MiB and labels truncated files. It cancels the request when closed. Text preview requires S3 CORS to allow GET from the frontend origin (and any isolated test frontend origin used for live QA); the frontend does not send Authorization or other custom headers to S3. If access is denied, the dialog offers retry and Download rather than navigating to a URL that might trigger a download. Image, PDF and native media previews do not require this text-fetch CORS permission. A future CSP must allow the storage origin in `connect-src`, `img-src`, `frame-src` and `media-src` as applicable.
+
+The deployment owner can review this minimal bucket CORS rule and merge it with any existing rules. Add isolated test origins explicitly when needed; file access still requires a valid signed URL.
+
+```json
+{
+  "AllowedOrigins": ["https://clouddrop-c8.duckdns.org"],
+  "AllowedMethods": ["GET"],
+  "MaxAgeSeconds": 300
+}
+```
+
+Download starts saving automatically after receiving a fresh signed attachment link from `GET /files/:id/download`. A Save file link remains available if the browser blocks the automatic action. Preparation can be cancelled, errors retried, and expired links renewed. The browser fixture suite verifies CSV text safety, bounded previews, CORS failures and actual audio/video loading in addition to existing image and download checks. Its 712-byte WebM fixture was generated locally from a 64×48 solid-colour canvas using Chromium's VP8 MediaRecorder; the WAV fixture is synthetic silence generated in the test.
 
 The frontend never edits a signed URL, forwards bearer tokens to storage, or treats an inline link as a successful download. See [the backend download handoff](docs/backend-download-handoff.md) and [the final QA report](docs/final-qa-report.md) for the history of the download contract.
 

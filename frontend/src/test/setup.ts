@@ -5,7 +5,7 @@ import { configure } from "@testing-library/react";
 // in a file can exceed the 1 s default on a busy machine.
 configure({ asyncUtilTimeout: 3000 });
 
-if (!HTMLDialogElement.prototype.showModal) {
+if (typeof HTMLDialogElement !== "undefined" && !HTMLDialogElement.prototype.showModal) {
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute("open", "");
   };

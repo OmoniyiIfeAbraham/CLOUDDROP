@@ -27,6 +27,19 @@ export const PREVIEWABLE_MIME_TYPES: ReadonlySet<string> = new Set([
   "image/png",
   "image/gif",
   "image/webp",
+  "text/plain",
+  "text/csv",
+  "text/markdown",
+  "application/json",
+  "application/x-yaml",
+  "application/yaml",
+  "application/sql",
+  "video/mp4",
+  "video/mpeg",
+  "video/webm",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
 ]);
 
 export interface DownloadResult {

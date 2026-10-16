@@ -20,6 +20,8 @@ const signIn = async (page: Page) => {
 };
 
 test("auth screens meet automated accessibility checks", async ({ page }) => {
+  // Three complete axe scans need more time than a single interaction test.
+  test.slow();
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await audit(page, "login");
@@ -30,6 +32,34 @@ test("auth screens meet automated accessibility checks", async ({ page }) => {
   await page.getByRole("link", { name: "Create an account" }).click();
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   await audit(page, "registration");
+});
+
+test("an unknown route has a main landmark, heading focus and a working return link", async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/this-page-does-not-exist");
+  await expect(page.getByRole("main", { name: "Page not found" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Page not found" })).toBeFocused();
+  await audit(page, "not-found page");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath("not-found-320.png"), fullPage: true });
+  await page.getByRole("link", { name: "Back to CloudDrop" }).click();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+});
+
+test("a loading recovery page keeps its landmark, heading and status", async ({ page }) => {
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(/\/(?:src\/pages\/PasswordRecoveryPage\.tsx|assets\/PasswordRecoveryPage-[^/]+\.js)(?:\?.*)?$/, async route => {
+    await pending;
+    await route.continue();
+  });
+  try {
+    await page.goto("/forgot-password", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("main").getByRole("status")).toContainText("Loading your page...");
+    await expect(page.getByRole("heading", { name: "Loading your page..." })).toBeVisible();
+    await audit(page, "recovery loading state");
+  } finally { release(); }
+  await expect(page.getByRole("heading", { name: "Forgot your password?" })).toBeVisible();
 });
 
 test("workspace and file actions meet automated accessibility checks", async ({ page, isMobile }) => {
@@ -86,7 +116,8 @@ test("account page and delete dialog meet automated accessibility checks", async
   await page.getByRole("link", { name: "Account" }).click();
   await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
   await audit(page, "Account page");
-  await page.getByRole("button", { name: "Delete account" }).click();
+  // Pointer activation does not focus buttons in every browser.
+  await page.getByRole("button", { name: "Delete account" }).evaluate(element => (element as HTMLButtonElement).click());
   await expect(page.getByRole("dialog", { name: "Delete your account?" })).toBeVisible();
   await audit(page, "Delete account dialog");
   await page.keyboard.press("Escape");

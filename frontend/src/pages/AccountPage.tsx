@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import type { MouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Trash2 } from "lucide-react";
@@ -31,9 +32,11 @@ export const AccountPage = () => {
   const [confirmation, setConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [invokingControl, setInvokingControl] = useState<HTMLElement | null>(null);
   const confirmed = confirmation.trim() === CONFIRMATION_WORD;
 
-  const openDialog = () => {
+  const openDialog = (event: MouseEvent<HTMLButtonElement>) => {
+    setInvokingControl(event.currentTarget);
     setConfirmation("");
     setError("");
     setOpen(true);
@@ -72,7 +75,7 @@ export const AccountPage = () => {
         {uploading && <p className="account-danger__hint" id="delete-blocked">Wait for your uploads to finish, or cancel them, before deleting your account.</p>}
         <button className="button button--danger" type="button" onClick={openDialog} disabled={uploading} aria-describedby={uploading ? "delete-blocked" : undefined}><Trash2 size={16} /> Delete account</button>
       </section>
-      <Dialog title="Delete your account?" open={open} closeDisabled={deleting} onClose={closeDialog}>
+      <Dialog title="Delete your account?" open={open} closeDisabled={deleting} onClose={closeDialog} returnFocusTo={invokingControl}>
         <form className="dialog__body" onSubmit={(event) => { event.preventDefault(); void confirmDelete(); }} noValidate>
           <p className="dialog__intro">{deletionSummary(stats.data?.totalFiles)}</p>
           <label className="field" htmlFor={confirmationId}>

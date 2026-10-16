@@ -1,6 +1,6 @@
 
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FilePreview } from "./FilePreview";
 import { normalFileFixtures } from "../api/files.fixtures";
 
@@ -11,6 +11,7 @@ const originalDescriptor = Object.getOwnPropertyDescriptor(
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 
   if (originalDescriptor) {
     Object.defineProperty(
@@ -31,7 +32,7 @@ const pdf = {
 
 const url = "https://storage.example/preview.pdf";
 
-describe("PDF preview", () => {
+describe("file preview", () => {
   it("shows a fallback message when the browser reports no inline PDF viewer", () => {
     Object.defineProperty(navigator, "pdfViewerEnabled", {
       value: false,
@@ -69,9 +70,9 @@ describe("PDF preview", () => {
 
   it("does not try to preview types the backend will not serve inline", () => {
     for (const mimeType of [
-      "text/plain",
-      "video/mp4",
-      "audio/mpeg",
+      "application/zip",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/svg+xml",
     ]) {
       const { unmount } = render(
         <FilePreview
@@ -91,5 +92,45 @@ describe("PDF preview", () => {
 
       unmount();
     }
+  });
+  it.each(["text/plain", "text/csv", "text/markdown", "application/json", "application/yaml", "application/x-yaml", "application/sql"])("renders %s as literal text without navigating or executing markup", async (mimeType) => {
+    const content = '<script>window.previewExecuted = true</script>\nRésumé, <img src="x">';
+    const fetchFile = vi.fn().mockResolvedValue(new Response(content));
+    vi.stubGlobal("fetch", fetchFile);
+    render(<FilePreview file={{ ...pdf, mimeType, originalName: "notes.csv" }} url={url} onError={vi.fn()} />);
+    const preview = await screen.findByRole("region", { name: "Preview of notes.csv" });
+    expect(preview.textContent).toBe(content);
+    expect(preview.querySelector("script, img, iframe")).toBeNull();
+    expect(fetchFile).toHaveBeenCalledWith(url, expect.objectContaining({ credentials: "omit", referrerPolicy: "no-referrer" }));
+  });
+
+  it.each([['video/webm', 'video'], ['audio/wav', 'audio']])("provides controls for %s and reports playback failure", (mimeType, tag) => {
+    const onError = vi.fn();
+    render(<FilePreview file={{ ...pdf, mimeType }} url={url} onError={onError} />);
+    const media = document.querySelector(tag!)!;
+    expect(media).toHaveAttribute("controls");
+    expect(media).toHaveAttribute("src", url);
+    expect(media).not.toHaveAttribute("autoplay");
+    fireEvent.error(media);
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("reports a denied text preview so the dialog can offer retry and Download", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("Forbidden", { status: 403 })));
+    const onError = vi.fn();
+    render(<FilePreview file={{ ...pdf, mimeType: "text/plain" }} url={url} onError={onError} />);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+  });
+
+  it("aborts a pending text request when the preview closes", () => {
+    const fetchFile = vi.fn().mockReturnValue(new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchFile);
+    const onError = vi.fn();
+    const { unmount } = render(<FilePreview file={{ ...pdf, mimeType: "text/plain" }} url={url} onError={onError} />);
+    const options = fetchFile.mock.calls[0]![1] as RequestInit;
+    expect(options.signal?.aborted).toBe(false);
+    unmount();
+    expect(options.signal?.aborted).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
   });
 });
