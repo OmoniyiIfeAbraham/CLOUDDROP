@@ -188,6 +188,7 @@ describe("Authentication API error handling", () => {
 describe("Password reset API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedGetTokenVersionForAuth.mockResolvedValue(0);
   });
 
   it("returns a generic response for a forgot-password request", async () => {
