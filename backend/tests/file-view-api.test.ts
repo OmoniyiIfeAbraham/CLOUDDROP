@@ -4,6 +4,7 @@ import app from "../src/server.js";
 import { generateToken } from "../src/utils/auth.utils.js";
 import { getFileById } from "../src/services/file.service.js";
 import { generateDownloadUrl } from "../src/services/s3-download.service.js";
+import { getTokenVersionForAuth } from "../src/services/auth.service.js";
 
 vi.mock("../src/services/file.service.js", async (importOriginal) => {
   const actual =
@@ -21,12 +22,25 @@ vi.mock("../src/services/s3-download.service.js", () => ({
 
 const mockedGetFileById = vi.mocked(getFileById);
 const mockedGenerateDownloadUrl = vi.mocked(generateDownloadUrl);
+const mockedGetTokenVersionForAuth = vi.mocked(getTokenVersionForAuth);
 
 const token = generateToken("validation-test-user");
+
+
+vi.mock("../src/services/auth.service.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../src/services/auth.service.js")>();
+
+  return {
+    ...actual,
+    getTokenVersionForAuth: vi.fn().mockResolvedValue(0),
+  };
+});
 
 describe("File View API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockedGetTokenVersionForAuth.mockResolvedValue(0);
   });
 
   it("rejects unauthenticated requests", async () => {

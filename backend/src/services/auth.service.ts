@@ -44,6 +44,16 @@ const poolConfig = {
 const adapter = new PrismaPg(poolConfig);
 const prisma = new PrismaClient({ adapter });
 
+export const getTokenVersionForAuth = async (
+  userId: string,
+): Promise<number | null> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tokenVersion: true },
+  });
+  return user?.tokenVersion ?? null;
+};
+
 const normalizeEmail = (email: string): string =>
   email.trim().toLowerCase();
 
@@ -223,7 +233,7 @@ export const verifyEmail = async (email: string, code: string) => {
 
   return {
     user: publicUser(verifiedUser),
-    token: generateToken(verifiedUser.id),
+    token: generateToken(verifiedUser.id, verifiedUser.tokenVersion),
     message: "Email verified successfully.",
   };
 };
@@ -339,7 +349,7 @@ export const loginUser = async (email: string, password: string) => {
 
   return {
     user: publicUser(user),
-    token: generateToken(user.id),
+    token: generateToken(user.id, user.tokenVersion),
   };
 };
 
@@ -456,6 +466,7 @@ export const resetPassword = async (
     },
     data: {
       passwordHash,
+      tokenVersion: { increment: 1 },
       passwordResetTokenHash: null,
       passwordResetExpiresAt: null,
     },

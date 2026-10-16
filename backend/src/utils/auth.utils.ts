@@ -12,13 +12,13 @@ export const comparePassword = async (
   return bcrypt.compare(password, passwordHash);
 };
 
-export const generateToken = (userId: string): string => {
+export const generateToken = (userId: string, tokenVersion = 0): string => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
     throw new Error("JWT_SECRET is not configured");
   }
 
-  return jwt.sign({ userId }, secret, { expiresIn: "7d" });
+  return jwt.sign({ userId, tokenVersion }, secret, { expiresIn: "7d" });
 };
 

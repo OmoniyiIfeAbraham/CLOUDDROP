@@ -24,7 +24,7 @@ const deliverMessage = async (to: string, content: { code: string } | { resetLin
   }
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const status = await lstat(directory);
-  if (!status.isDirectory() || (status.mode & 0o077) !== 0) {
+  if (!status.isDirectory() || (process.platform !== "win32" && (status.mode & 0o077) !== 0)) {
     throw new Error("The E2E mailbox must be a private directory (0700).");
   }
 
