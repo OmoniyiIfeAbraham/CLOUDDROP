@@ -30,6 +30,7 @@ flowchart LR
 | `/files` | File library | Signed-in users |
 | `/files/:id` | File details | Signed-in users |
 | `/upload` | Upload queue | Signed-in users |
+| `/account` | Profile details and Delete account | Signed-in users |
 | anything else | Not found | Anyone |
 
 If a signed-out user opens a protected page, the app sends them to `/login` and returns them to that page after they sign in.
@@ -99,6 +100,23 @@ The resend confirmation is deliberately neutral ("If the account is eligible, a 
 2. The email links to `/reset-password?token=…`. The user chooses a new password, and the app sends `POST /auth/reset-password` with `{ token, newPassword }`.
 3. On success, the app removes the token from the address bar and shows "Password updated". The user then signs in with the new password.
 4. If the link is invalid, expired or already used (`INVALID_OR_EXPIRED_RESET_TOKEN`), or the token is missing from the address, the page explains this and offers to request a new link.
+
+### Delete account
+
+1. **Account** in the sidebar opens `/account`, which shows the user's name and email and a **Delete account** section.
+2. **Delete account** opens a confirmation dialog. It says what will be lost: either the number of files, from `GET /dashboard/stats`, or that there are no stored files. The final **Delete account** button stays disabled until the user types `DELETE`.
+3. The app sends `DELETE /auth/me` with the bearer token. The backend deletes the user's files from S3, then the account. The database removes the user's file records and share links with it.
+4. Only after a successful response does the app sign the user out: it clears the token and cached data, then shows "Your account and all of its files have been deleted." on the sign-in page.
+5. If deletion fails, the user stays signed in, the dialog stays open with the reason, and they can try again. No success message is shown.
+
+| Situation | Backend response | What the user sees |
+| --- | --- | --- |
+| Some files couldn't be removed from storage | `502 S3_CLEANUP_FAILED` | "Your account was not deleted because some files could not be removed…" |
+| Files removed, but the account couldn't be deleted | `500 ACCOUNT_DELETE_FAILED` | "Your files were removed, but your account could not be deleted…" |
+| The account no longer exists | `404 USER_NOT_FOUND` | "This account no longer exists. Sign out to continue." |
+| The session has expired | `401` | The usual "Your session has ended" sign-out |
+
+The button is disabled while uploads are running, so files can't be added during deletion.
 
 ## File flows
 
@@ -189,6 +207,7 @@ All paths are under `/api/v1`, except share links.
 | POST | `/auth/resend-verification` | Send a new verification code |
 | POST | `/auth/login` | Sign in |
 | GET | `/auth/me` | Restore a session when the app loads |
+| DELETE | `/auth/me` | Delete the signed-in user's account and files |
 | POST | `/auth/forgot-password` | Request a reset email |
 | POST | `/auth/reset-password` | Set a new password |
 | GET | `/dashboard/stats` | Dashboard totals |
@@ -225,6 +244,7 @@ Demo mode is for development, design reviews and automated UI tests. It doesn't 
 | Routes and page protection | `src/app/App.tsx` |
 | Pages | `src/pages/` |
 | Sign-in, sessions, verification and password reset | `src/features/auth/`, `src/pages/AuthPage.tsx`, `src/pages/PasswordRecoveryPage.tsx` |
+| Account page and Delete account | `src/pages/AccountPage.tsx`, `src/features/auth/AuthProvider.tsx` |
 | API client (token header, 401 handling) | `src/features/files/api/api-client.ts`, `src/lib/api.ts`, `src/lib/runtime.ts` |
 | File API calls and response checks | `src/features/files/api/` (`files-http-repository.ts` for live mode, `files-mock-repository.ts` for demo mode) |
 | View, Download, Share and Delete dialogs | `src/features/files/hooks/useFileActions.tsx` |

@@ -15,6 +15,9 @@ export interface AuthContextValue {
   resendVerificationEmail: (email: string) => Promise<void>;
   logout: () => void;
   retryRestore: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
+  // Shown on the sign-in and registration pages, e.g. after an account is deleted.
+  notice: string | null;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(

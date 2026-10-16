@@ -182,6 +182,9 @@ svg { flex: none; }
 .detail-section dl div { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .detail-section dt { color: var(--muted); }
 .detail-section dd { margin: 0; overflow-wrap: anywhere; font-weight: 620; }
+.account-page .detail-section + .detail-section { margin-top: 36px; }
+.account-danger p { max-width: 640px; margin: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.account-danger .account-danger__hint { color: #8f3934; }
 
 .upload-layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; align-items: start; gap: 20px; }
 .upload-main { min-width: 0; }

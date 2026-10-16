@@ -1,4 +1,5 @@
 import { ApiError } from "../files/api/api-error";
+import { forgetMockRepository } from "../files/api/mock-repositories";
 import { apiClient } from "../../lib/api";
 
 export interface User {
@@ -33,6 +34,7 @@ export interface AuthService {
   verifyEmail(email: string, code: string): Promise<AuthResult>;
   resendVerificationEmail(email: string): Promise<void>;
   me(token: string): Promise<User>;
+  deleteAccount(): Promise<void>;
 }
 
 export const httpAuthService: AuthService = {
@@ -72,6 +74,13 @@ export const httpAuthService: AuthService = {
   async me() {
     const result = await apiClient.request<{ user: User }>("/auth/me");
     return result.user;
+  },
+
+  async deleteAccount() {
+    await apiClient.request<void>("/auth/me", {
+      method: "DELETE",
+      allowEmptyData: true,
+    });
   },
 };
 
@@ -172,5 +181,13 @@ export const mockAuthService: AuthService = {
 
     const stored = sessionStorage.getItem(MOCK_USER_KEY);
     return stored ? JSON.parse(stored) as User : demoUser;
+  },
+
+  async deleteAccount() {
+    const stored = sessionStorage.getItem(MOCK_USER_KEY);
+    const user = stored ? JSON.parse(stored) as User : demoUser;
+    demoAccounts.delete(user.email);
+    forgetMockRepository(user.id);
+    sessionStorage.removeItem(MOCK_USER_KEY);
   },
 };

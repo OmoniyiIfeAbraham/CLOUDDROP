@@ -32,6 +32,8 @@ const signedInAs = (id: string): AuthContextValue => ({
   }),
   logout: () => {},
   retryRestore: async () => {},
+  deleteAccount: async () => {},
+  notice: null,
 });
 
 const renderUpload = (repository: FilesRepository) => {

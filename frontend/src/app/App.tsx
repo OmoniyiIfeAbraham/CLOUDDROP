@@ -7,6 +7,7 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { FilesPage } from "../pages/FilesPage";
 import { FileDetailsPage } from "../pages/FileDetailsPage";
 import { UploadPage } from "../pages/UploadPage";
+import { AccountPage } from "../pages/AccountPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { StatusView } from "../components/ui/StatusView";
 
@@ -54,6 +55,7 @@ export const App = () => (
         <Route path="files" element={<FilesPage />} />
         <Route path="files/:fileId" element={<FileDetailsPage />} />
         <Route path="upload" element={<UploadPage />} />
+        <Route path="account" element={<AccountPage />} />
       </Route>
     </Route>
     <Route path="*" element={<NotFoundPage />} />
