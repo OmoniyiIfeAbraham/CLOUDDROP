@@ -63,7 +63,7 @@ jobs:
       - name: Verify download UX in Chromium and WebKit
         run: npm run test:downloads
 
-      - name: Verify password recovery in Chromium and WebKit
+      - name: Verify auth recovery in Chromium and WebKit
         run: npm run test:recovery
 
       - name: Save browser screenshots and failure traces

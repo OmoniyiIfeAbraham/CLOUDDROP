@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../features/auth/auth-context";
 import type { AuthContextValue } from "../features/auth/auth-context";
@@ -30,9 +30,13 @@ const renderAuthPage = (
   };
 
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[`/${mode}`]}>
       <AuthContext.Provider value={value}>
-        <AuthPage mode={mode} />
+        <Routes>
+          <Route path="/login" element={<AuthPage key="login" mode="login" />} />
+          <Route path="/register" element={<AuthPage key="register" mode="register" />} />
+          <Route path="/" element={<h1>Workspace</h1>} />
+        </Routes>
       </AuthContext.Provider>
     </MemoryRouter>,
   );
@@ -58,6 +62,7 @@ const completeRegistration = async (expectVerification = true) => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 describe("sign-in and registration errors", () => {
@@ -122,6 +127,38 @@ describe("sign-in and registration errors", () => {
 });
 
 describe("email verification", () => {
+  it("recovers when the account was created but its verification email could not be sent", async () => {
+    const register = vi.fn().mockRejectedValue(new ApiError({
+      message: "Account created but email delivery failed",
+      code: "VERIFICATION_EMAIL_FAILED",
+      status: 503,
+    }));
+    renderAuthPage("register", { register });
+    await completeRegistration(false);
+
+    expect(await screen.findByRole("heading", { name: "Verify your email" })).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("Your account was created");
+    expect(screen.getByRole("button", { name: "Resend verification code" })).toBeEnabled();
+    expect(screen.queryByText("We could not create your account. Please try again.")).not.toBeInTheDocument();
+  });
+
+  it("opens verification when the backend rejects an unverified sign-in", async () => {
+    const login = vi.fn().mockRejectedValue(new ApiError({
+      message: "Please verify your email before logging in.",
+      code: "EMAIL_NOT_VERIFIED",
+      status: 403,
+    }));
+    renderAuthPage("login", { login });
+    fill("Email address", "ada@example.com");
+    fill("Password", "securepass123", true);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("heading", { name: "Verify your email" })).toBeVisible();
+    expect(screen.getByText(/ada@example\.com/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Back to sign in" })).toBeVisible();
+    expect(screen.queryByText("Sign in failed. Check your details and try again.")).not.toBeInTheDocument();
+  });
+
   it("opens the verification step after successful registration", async () => {
     const register = vi.fn(async () => ({
       user: {
@@ -177,7 +214,7 @@ describe("email verification", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Email verification failed. Check the code and try again.",
+      "That code is incorrect or has expired. Check it or request a new code.",
     );
   });
 
@@ -194,5 +231,98 @@ describe("email verification", () => {
     });
 
     expect(await screen.findByText(/new verification email will be sent/i)).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent(/new verification email will be sent/i);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("lets an existing registration finish verification without registering again", async () => {
+    const register = vi.fn().mockRejectedValue(new ApiError({ message: "Duplicate", code: "EMAIL_ALREADY_REGISTERED", status: 409 }));
+    const resendVerificationEmail = vi.fn().mockResolvedValue(undefined);
+    const verifyEmail = vi.fn().mockResolvedValue(undefined);
+    renderAuthPage("register", { register, resendVerificationEmail, verifyEmail });
+    await completeRegistration(false);
+    fireEvent.click(await screen.findByRole("button", { name: "Finish email verification" }));
+    expect(await screen.findByRole("heading", { name: "Verify your email" })).toHaveFocus();
+    expect(resendVerificationEmail).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Resend verification code" }));
+    await waitFor(() => expect(resendVerificationEmail).toHaveBeenCalledWith("ada@example.com"));
+    fill("Verification code", "654321");
+    fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
+    await waitFor(() => expect(verifyEmail).toHaveBeenCalledWith("ada@example.com", "654321"));
+    expect(register).toHaveBeenCalledOnce();
+  });
+
+  it("prefills sign-in with the existing account email", async () => {
+    const register = vi.fn().mockRejectedValue(new ApiError({ message: "Duplicate", code: "EMAIL_ALREADY_REGISTERED", status: 409 }));
+    renderAuthPage("register", { register });
+    await completeRegistration(false);
+    fireEvent.click(await screen.findByRole("link", { name: "Sign in instead" }));
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+    expect(screen.getByLabelText("Email address")).toHaveValue("ada@example.com");
+    expect(screen.getByLabelText("Password", { exact: true })).toHaveValue("");
+  });
+
+  it("offers recovery after an ambiguous registration response without claiming the account was created", async () => {
+    const register = vi.fn().mockRejectedValue(new ApiError({ message: "Unavailable", code: "HTTP_ERROR", status: 502 }));
+    renderAuthPage("register", { register });
+    await completeRegistration(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not confirm account creation");
+    expect(screen.queryByText(/Your account was created/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finish email verification" })).toBeEnabled();
+  });
+
+  it("keeps failed delivery visible and does not mark an untouched verification code invalid", async () => {
+    const register = vi.fn().mockRejectedValue(new ApiError({ message: "Delivery failed", code: "VERIFICATION_EMAIL_FAILED", status: 503 }));
+    const resendVerificationEmail = vi.fn()
+      .mockRejectedValueOnce(new ApiError({ message: "Delivery failed", code: "VERIFICATION_EMAIL_FAILED", status: 503 }))
+      .mockResolvedValueOnce(undefined);
+    renderAuthPage("register", { register, resendVerificationEmail });
+    await completeRegistration(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not send the verification email");
+    expect(screen.getByLabelText("Verification code")).toHaveAttribute("aria-invalid", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Resend verification code" }));
+    await waitFor(() => expect(resendVerificationEmail).toHaveBeenCalledOnce());
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not send the verification email");
+    fireEvent.click(screen.getByRole("button", { name: "Resend verification code" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(screen.getByRole("status")).toHaveTextContent("If the account is eligible");
+    expect(resendVerificationEmail).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the entered password when unverified sign-in moves into verification", async () => {
+    const login = vi.fn().mockRejectedValue(new ApiError({ message: "Verify email", code: "EMAIL_NOT_VERIFIED", status: 403 }));
+    renderAuthPage("login", { login });
+    fill("Email address", "ADA@example.com"); fill("Password", "securepass123", true);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("heading", { name: "Verify your email" })).toBeVisible();
+    expect(screen.getByText(/ada@example\.com/)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Back to sign in" }));
+    expect(screen.getByLabelText("Password", { exact: true })).toHaveValue("");
+  });
+
+  it("directs an already-verified account back to sign-in without accepting a session", async () => {
+    const login = vi.fn().mockRejectedValue(new ApiError({ message: "Verify email", code: "EMAIL_NOT_VERIFIED", status: 403 }));
+    const verifyEmail = vi.fn().mockRejectedValue(new ApiError({ message: "Already verified", code: "EMAIL_ALREADY_VERIFIED", status: 409 }));
+    renderAuthPage("login", { login, verifyEmail });
+    fill("Email address", "ada@example.com"); fill("Password", "securepass123", true);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await screen.findByRole("heading", { name: "Verify your email" });
+    fill("Verification code", "123456");
+    fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Email already verified" })).toHaveFocus());
+    expect(sessionStorage.getItem("clouddrop.access-token") === null).toBe(true);
+    fireEvent.click(screen.getByRole("link", { name: "Sign in" }));
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+
+  it.each(["INVALID_VERIFICATION_CODE", "VERIFICATION_ATTEMPTS_EXCEEDED"])("gives actionable code feedback for %s", async (code) => {
+    const verifyEmail = vi.fn().mockRejectedValue(new ApiError({ message: "Code rejected", code, status: 400 }));
+    renderAuthPage("register", { verifyEmail });
+    await completeRegistration();
+    fill("Verification code", "000000");
+    fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/request a new (verification )?code/i);
+    expect(screen.getByLabelText("Verification code")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Verification code")).toHaveFocus();
   });
 });
