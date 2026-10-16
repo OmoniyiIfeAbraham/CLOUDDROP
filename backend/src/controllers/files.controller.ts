@@ -63,6 +63,19 @@ const INLINE_PREVIEW_MIME_TYPES = new Set([
   "image/png",
   "image/gif",
   "image/webp",
+  "text/plain",
+  "text/csv",
+  "text/markdown",
+  "application/json",
+  "application/x-yaml",
+  "application/yaml",
+  "application/sql",
+  "video/mp4",
+  "video/mpeg",
+  "video/webm",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
 ]);
 
 export const uploadFile = async (
@@ -279,11 +292,34 @@ export const downloadFile = async (
     }
 
     const expiresIn = 600;
-    const downloadUrl = await generateDownloadUrl(
-      file.s3Key,
-      expiresIn,
-      file.originalName,
-    );
+    const disposition =
+      req.query.disposition === "inline" ? "inline" : "attachment";
+
+    if (
+      disposition === "inline" &&
+      !INLINE_PREVIEW_MIME_TYPES.has(file.mimeType)
+    ) {
+      throw new ApiError(
+        415,
+        "Preview is not supported for this file type",
+        "PREVIEW_NOT_SUPPORTED",
+      );
+    }
+
+    const downloadUrl =
+      disposition === "inline"
+        ? await generateDownloadUrl(
+            file.s3Key,
+            expiresIn,
+            file.originalName,
+            file.mimeType,
+            "inline",
+          )
+        : await generateDownloadUrl(
+            file.s3Key,
+            expiresIn,
+            file.originalName,
+          );
 
     res.status(200).json({
       success: true,
