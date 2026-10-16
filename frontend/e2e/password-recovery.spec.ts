@@ -46,6 +46,7 @@ test("reset validates confirmation, submits query token and clears it on success
     await route.fulfill({ json: ok });
   });
   await page.goto("/reset-password?token=fixture%2Btoken");
+  await expect(page.getByRole("heading", { name: "Set a new password" })).toBeVisible();
   await audit(page);
   await page.screenshot({ path: info.outputPath("reset-password.png"), fullPage: true });
   await page.getByRole("button", { name: "Reset password", exact: true }).click();

@@ -17,6 +17,7 @@ beforeEach(() => { vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementa
 
 const firstFile = normalFileFixtures[0]!;
 const secondFile = normalFileFixtures[1]!;
+const createActionRepository = () => createMockFilesRepository({ files: [firstFile, secondFile] });
 
 const renderActions = (repository: FilesRepository) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -38,12 +39,13 @@ const openShare = async (file: typeof firstFile) => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
 describe("file actions", () => {
   it("does not turn Download into viewing when the backend returns an inline link", async () => {
-    const base = createMockFilesRepository();
+    const base = createMockFilesRepository({ files: [firstFile] });
     let issued = 0;
     const getDownload = vi.fn(async (id: string) => ({
       ...await base.getDownload(id),
@@ -66,7 +68,7 @@ describe("file actions", () => {
   });
 
   it("starts a filename-preserving download automatically from the initial click", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const url = 'https://example.invalid/download?response-content-disposition=attachment%3B%20filename%3D%22notes.txt%22&response-content-type=application%2Foctet-stream&X-Amz-Signature=example';
     renderActions({ ...base, getDownload: async (id) => ({ ...await base.getDownload(id), downloadUrl: url }) });
 
@@ -84,7 +86,7 @@ describe("file actions", () => {
   });
 
   it("rejects attachment links that lack binary delivery", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     renderActions({ ...base, getDownload: async (id) => ({
       ...await base.getDownload(id),
       downloadUrl: "https://example.invalid/download?response-content-disposition=attachment",
@@ -97,7 +99,7 @@ describe("file actions", () => {
 
   it("explains a missing file in the download dialog without opening a link", async () => {
     renderActions({
-      ...createMockFilesRepository(),
+      ...createActionRepository(),
       getDownload: async () => { throw new ApiError({ message: "File not found", code: "NOT_FOUND", status: 404 }); },
     });
 
@@ -108,7 +110,7 @@ describe("file actions", () => {
   });
 
   it("does not open a non-HTTPS download URL", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     renderActions({
       ...base,
@@ -124,7 +126,7 @@ describe("file actions", () => {
   it("lets the user cancel preparation and ignores a late response", async () => {
     let resolveDownload!: (result: DownloadResult) => void;
     const pending = new Promise<DownloadResult>((resolve) => { resolveDownload = resolve; });
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const getDownload = vi.fn(() => pending);
     renderActions({ ...base, getDownload });
     const button = await screen.findByRole("button", { name: `Download ${firstFile.originalName}` });
@@ -140,7 +142,7 @@ describe("file actions", () => {
   });
 
   it("retries a failed download request with a new link", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const getDownload = vi.fn(async (id: string) => ({ ...await base.getDownload(id), downloadUrl: attachmentUrl }))
       .mockRejectedValueOnce(new ApiError({ message: "Unavailable", code: "DOWNLOAD_FAILED", status: 500, retryable: true }));
     renderActions({ ...base, getDownload });
@@ -152,19 +154,24 @@ describe("file actions", () => {
   });
 
   it("removes expired download links and can request a fresh one", async () => {
-    const base = createMockFilesRepository();
+    vi.useFakeTimers();
+    const base = createActionRepository();
     const getDownload = vi.fn(async (id: string) => ({ ...await base.getDownload(id), downloadUrl: attachmentUrl, expiresIn: 0.1 }));
     renderActions({ ...base, getDownload });
-    fireEvent.click(await screen.findByRole("button", { name: `Download ${firstFile.originalName}` }));
-    expect(await screen.findByRole("link", { name: "Save file" })).toBeVisible();
-    expect(await screen.findByRole("alert")).toHaveTextContent("This file link has expired.");
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    fireEvent.click(screen.getByRole("button", { name: `Download ${firstFile.originalName}` }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByRole("link", { name: "Save file" })).toBeVisible();
+    await act(async () => { await vi.advanceTimersByTimeAsync(101); });
+    expect(screen.getByRole("alert")).toHaveTextContent("This file link has expired.");
     expect(screen.queryByRole("link", { name: "Save file" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await waitFor(() => expect(getDownload).toHaveBeenCalledTimes(2));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(getDownload).toHaveBeenCalledTimes(2);
   });
 
   it("uses View to preview an image without initiating a download", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const getDownload = vi.fn((id: string) => base.getDownload(id));
     const getView = vi.fn((id: string) => base.getView(id));
     renderActions({ ...base, getDownload, getView });
@@ -179,12 +186,12 @@ describe("file actions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The preview could not be loaded");
   });
 
-  it("explains unsupported previews such as CSV without asking the backend", async () => {
-    const csv = { ...firstFile, mimeType: "text/csv", originalName: "records.csv" };
-    const base = createMockFilesRepository({ files: [csv] });
+  it("explains unsupported archives without asking the backend", async () => {
+    const archive = { ...firstFile, mimeType: "application/zip", originalName: "archive.zip" };
+    const base = createMockFilesRepository({ files: [archive] });
     const getView = vi.fn((id: string) => base.getView(id));
     renderActions({ ...base, getView });
-    fireEvent.click(await screen.findByRole("button", { name: "View records.csv" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View archive.zip" }));
     expect(await screen.findByText(/A browser preview is not available/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Download" })).toBeVisible();
     expect(document.querySelector("iframe")).toBeNull();
@@ -193,14 +200,14 @@ describe("file actions", () => {
   });
 
   it("explains a preview the backend refuses", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     renderActions({ ...base, getView: async () => { throw new ApiError({ message: "Preview is not supported for this file type", code: "PREVIEW_NOT_SUPPORTED", status: 415 }); } });
     fireEvent.click(await screen.findByRole("button", { name: `View ${secondFile.originalName}` }));
     expect(await screen.findByRole("alert")).toHaveTextContent("A preview is not available for this file type. Use Download to save it.");
   });
 
   it("waits for the user to choose an expiry before creating a link", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const getTemporaryShare = vi.fn((id: string, ttlHours?: number) => base.getTemporaryShare(id, ttlHours));
     renderActions({ ...base, getTemporaryShare });
 
@@ -217,7 +224,7 @@ describe("file actions", () => {
   });
 
   it("preserves a short CloudDrop share URL and its backend expiry", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const shareUrl = "https://clouddrop-c8.duckdns.org/s/Ab7kP2xQ";
     const expiresAt = new Date(Date.now() + 180_000).toISOString();
     renderActions({ ...base, getTemporaryShare: async (id) => ({ ...await base.getTemporaryShare(id), shareUrl, expiresAt }) });
@@ -229,7 +236,7 @@ describe("file actions", () => {
   });
 
   it("does not expose a link whose backend expiry has already passed", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     renderActions({ ...base, getTemporaryShare: async (id) => ({ ...await base.getTemporaryShare(id), expiresIn: 86400, expiresAt: new Date(Date.now() - 1000).toISOString() }) });
     await openShare(firstFile);
     expect(await screen.findByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
@@ -237,7 +244,7 @@ describe("file actions", () => {
   });
 
   it("keeps a failed share open and can request a new link", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const getTemporaryShare = vi.fn((id: string, ttlHours?: number) => base.getTemporaryShare(id, ttlHours))
       .mockRejectedValueOnce(new ApiError({ message: "Unavailable", code: "SHARE_FAILED", status: 500, retryable: true }));
     renderActions({ ...base, getTemporaryShare });
@@ -251,7 +258,7 @@ describe("file actions", () => {
   });
 
   it("does not expose a non-HTTPS share URL", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     renderActions({
       ...base,
       getTemporaryShare: async (id) => ({ ...await base.getTemporaryShare(id), shareUrl: "http://example.invalid/share" }),
@@ -264,34 +271,31 @@ describe("file actions", () => {
   });
 
   it("removes an expired share URL and offers renewal", async () => {
-    const base = createMockFilesRepository();
+    vi.useFakeTimers();
+    const base = createActionRepository();
     const getTemporaryShare = vi.fn(async (id: string) => ({
       ...await base.getTemporaryShare(id),
       expiresIn: 1,
       expiresAt: new Date(Date.now() + 1000).toISOString(),
     }));
     renderActions({ ...base, getTemporaryShare });
-
-    await openShare(firstFile);
-
-    expect(await screen.findByRole("textbox", { name: "Temporary link" })).toBeVisible();
-
-    await waitFor(
-      () => {
-        expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
-        expect(screen.getByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
-      },
-      { timeout: 3000 },
-    );
-
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    fireEvent.click(screen.getByRole("button", { name: `Share ${firstFile.originalName}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByRole("textbox", { name: "Temporary link" })).toBeVisible();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1001); });
+    expect(screen.queryByRole("textbox", { name: "Temporary link" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("This link has expired. Create a new one.");
     fireEvent.click(screen.getByRole("button", { name: "Create new link" }));
-    await waitFor(() => expect(getTemporaryShare).toHaveBeenCalledTimes(2));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(getTemporaryShare).toHaveBeenCalledTimes(2);
   });
 
   it("ignores a share result from a dialog that was closed", async () => {
     let resolveOld!: (result: ShareResult) => void;
     const oldRequest = new Promise<ShareResult>((resolve) => { resolveOld = resolve; });
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const getTemporaryShare = vi.fn((id: string) => id === firstFile.id ? oldRequest : base.getTemporaryShare(id));
     renderActions({ ...base, getTemporaryShare });
 
@@ -306,7 +310,7 @@ describe("file actions", () => {
   });
 
   it("keeps the file and dialog visible after deletion fails, then retries", async () => {
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     const deleteFile = vi.fn((id: string) => base.deleteFile(id))
       .mockRejectedValueOnce(new ApiError({ message: "Unavailable", code: "DELETE_FAILED", status: 500, retryable: true }));
     renderActions({ ...base, deleteFile });
@@ -323,7 +327,7 @@ describe("file actions", () => {
   it("does not dismiss a busy delete dialog with Escape", async () => {
     let finishDelete!: () => void;
     const pending = new Promise<void>((resolve) => { finishDelete = resolve; });
-    const base = createMockFilesRepository();
+    const base = createActionRepository();
     renderActions({ ...base, deleteFile: () => pending });
 
     fireEvent.click(await screen.findByRole("button", { name: `Delete ${firstFile.originalName}` }));

@@ -165,6 +165,8 @@ svg { flex: none; }
 .spinner { width: 16px; height: 16px; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .app-loading { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 100vh; color: var(--teal); font-size: 14px; }
+.app-loading__title { margin: 0; font: inherit; }
+.main-content .app-loading { min-height: 50dvh; }
 .session-recovery { display: grid; place-items: center; min-height: 100vh; padding: 20px; }
 .session-recovery .status-view { width: min(100%, 450px); }
 .session-recovery .text-button { margin-top: 15px; }
@@ -389,3 +391,6 @@ svg { flex: none; }
 .file-preview__audio { width: 100%; margin: 12px 0; }
 .file-preview__document { width: 100%; height: 55dvh; border: 0; }
 .file-preview > .dialog__intro { padding: 16px; }
+.text-preview { width: 100%; min-width: 0; }
+.text-preview > .dialog__intro { padding: 0 16px; font-size: 13px; }
+.text-preview__content { max-height: 55dvh; margin: 0; padding: 16px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.6 ui-monospace, monospace; }

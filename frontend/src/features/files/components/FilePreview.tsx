@@ -1,35 +1,7 @@
 
 import type { FileRecord } from "../model/file.types";
-import { canPreviewInBrowser } from "../lib/file-preview";
-
-const IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-];
-
-const TEXT_TYPES = [
-  "text/plain",
-  "text/csv",
-  "text/markdown",
-  "text/xml",
-  "application/json",
-  "application/xml",
-  "application/javascript",
-  "application/typescript",
-  "application/x-yaml",
-  "application/yaml",
-  "application/sql",
-];
-
-const TEXT_EXTENSIONS = new Set([
-  "txt", "csv", "json", "md", "markdown", "xml", "yaml", "yml",
-  "html", "htm", "css", "js", "jsx", "ts", "tsx", "sql", "sh",
-  "py", "java", "c", "cpp", "h", "go", "rs", "php", "rb",
-  "env", "log", "toml", "ini", "conf", "config", "graphql",
-]);
+import { canPreviewInBrowser, getFilePreviewKind } from "../lib/file-preview";
+import { TextPreview } from "./TextPreview";
 
 export const FilePreview = ({
   file,
@@ -41,13 +13,13 @@ export const FilePreview = ({
   onError: () => void;
 }) => {
   const type = file.mimeType.toLowerCase();
-  const extension = file.originalName.split(".").pop()?.toLowerCase() ?? "";
+  const kind = getFilePreviewKind(type);
 
   if (!canPreviewInBrowser(type)) {
     return <FilePreviewUnavailable />;
   }
 
-  if (IMAGE_TYPES.includes(type)) {
+  if (kind === "image") {
     return (
       <img
         className="file-preview__image"
@@ -59,7 +31,7 @@ export const FilePreview = ({
     );
   }
 
-  if (type.startsWith("video/")) {
+  if (kind === "video") {
     return (
       <video
         className="file-preview__video"
@@ -73,7 +45,7 @@ export const FilePreview = ({
     );
   }
 
-  if (type.startsWith("audio/")) {
+  if (kind === "audio") {
     return (
       <audio
         className="file-preview__audio"
@@ -86,14 +58,7 @@ export const FilePreview = ({
     );
   }
 
-  if (type === "application/pdf") {
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.pdfViewerEnabled === false
-    ) {
-      return <FilePreviewUnavailable />;
-    }
-
+  if (kind === "pdf") {
     return (
       <iframe
         className="file-preview__document"
@@ -104,17 +69,8 @@ export const FilePreview = ({
     );
   }
 
-  if (TEXT_TYPES.includes(type) || TEXT_EXTENSIONS.has(extension)) {
-    return (
-      <iframe
-        className="file-preview__document"
-        src={url}
-        title={`Preview of ${file.originalName}`}
-        sandbox="allow-same-origin"
-        referrerPolicy="no-referrer"
-        onError={onError}
-      />
-    );
+  if (kind === "text") {
+    return <TextPreview key={url} url={url} filename={file.originalName} onError={onError} />;
   }
 
   return <FilePreviewUnavailable />;

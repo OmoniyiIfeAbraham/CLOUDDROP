@@ -39,7 +39,7 @@ describe("forgot password", () => {
     fill("Email address", "unregistered@example.com");
     fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     const heading = await screen.findByRole("heading", { name: "Check your email" });
-    expect(heading).toHaveFocus();
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(screen.getByText(/If an account exists for that email/)).toBeVisible();
     expect(request).toHaveBeenCalledWith("unregistered@example.com");
     expect(screen.queryByRole("button", { name: "Send reset link" })).not.toBeInTheDocument();
@@ -74,7 +74,8 @@ describe("reset password", () => {
     const reset = vi.spyOn(passwordRecoveryService, "resetPassword").mockResolvedValue();
     const { logout } = renderPage("/reset-password?token=test%2Btoken");
     fill("New password", "a-long-password"); fill("Confirm password", "a-long-password"); submitPassword();
-    expect(await screen.findByRole("heading", { name: "Password updated" })).toHaveFocus();
+    const heading = await screen.findByRole("heading", { name: "Password updated" });
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(reset).toHaveBeenCalledWith("test+token", "a-long-password");
     expect(logout).toHaveBeenCalledOnce();
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/reset-password$/);
@@ -85,7 +86,8 @@ describe("reset password", () => {
     vi.spyOn(passwordRecoveryService, "resetPassword").mockRejectedValue(new ApiError({ message: "Invalid", code: "INVALID_OR_EXPIRED_RESET_TOKEN", status: 400 }));
     renderPage("/reset-password?token=used-token");
     fill("New password", "a-long-password"); fill("Confirm password", "a-long-password"); submitPassword();
-    expect(await screen.findByRole("heading", { name: "This reset link is no longer valid" })).toHaveFocus();
+    const heading = await screen.findByRole("heading", { name: "This reset link is no longer valid" });
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(screen.getByRole("link", { name: "Request a new reset link" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Reset password" })).not.toBeInTheDocument();
   });

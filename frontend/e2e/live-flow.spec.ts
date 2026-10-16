@@ -69,7 +69,7 @@ test("register, sign in, upload, list, download, share, and delete through the l
   await test.step("view", async () => {
     await page.getByRole("button", { name: `View ${fileName}`, exact: true }).click();
     await expect(page.getByRole("dialog", { name: "View file" })).toBeVisible();
-    await expect(page.frameLocator(`iframe[title="Preview of ${fileName}"]`).locator("body")).toContainText(content);
+    await expect(page.getByRole("region", { name: `Preview of ${fileName}`, exact: true })).toContainText(content);
     await page.getByRole("button", { name: "Close dialog" }).click();
   });
 

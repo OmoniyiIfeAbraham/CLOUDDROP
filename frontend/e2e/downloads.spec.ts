@@ -11,6 +11,13 @@ import { expect, test, type Page } from "@playwright/test";
 
 const filename = "Résumé notes (final).txt";
 const content = "CloudDrop browser download verification.\n";
+const csvContent = 'name,notes\nRésumé,"<script>window.previewExecuted = true</script>"\n';
+const wave = Buffer.alloc(44 + 8000);
+wave.write("RIFF", 0); wave.writeUInt32LE(wave.length - 8, 4); wave.write("WAVEfmt ", 8);
+wave.writeUInt32LE(16, 16); wave.writeUInt16LE(1, 20); wave.writeUInt16LE(1, 22);
+wave.writeUInt32LE(8000, 24); wave.writeUInt32LE(16000, 28); wave.writeUInt16LE(2, 32); wave.writeUInt16LE(16, 34);
+wave.write("data", 36); wave.writeUInt32LE(8000, 40);
+const video = readFileSync(new URL("./fixtures/preview.webm", import.meta.url));
 const pdfStream = "BT /F1 12 Tf 30 100 Td (CloudDrop PDF preview check) Tj ET";
 const pdfObjects = [
   "<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -47,10 +54,24 @@ test.beforeAll(async () => {
   storage = createServer({ key: readFileSync(key), cert: readFileSync(cert) }, (request, response) => {
     const url = new URL(request.url ?? "/", storageOrigin);
     storageRequests.push({ url: url.toString(), headers: request.headers });
+    if (url.searchParams.get("allowCors") === "1") response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:4176");
     response.setHeader("Content-Type", url.searchParams.get("response-content-type") ?? "text/plain");
     const attachment = url.searchParams.get("response-content-disposition");
     if (attachment) response.setHeader("Content-Disposition", attachment);
-    if (url.pathname === "/image.png") {
+    if (url.pathname === "/audio.wav" || url.pathname === "/video.webm") {
+      const bytes = url.pathname === "/audio.wav" ? wave : video;
+      response.setHeader("Accept-Ranges", "bytes");
+      const range = /^bytes=(\d+)-(\d*)$/.exec(request.headers.range ?? "");
+      const start = range ? Number(range[1]) : 0;
+      const end = Math.min(range?.[2] ? Number(range[2]) : bytes.length - 1, bytes.length - 1);
+      if (range) { response.statusCode = 206; response.setHeader("Content-Range", `bytes ${start}-${end}/${bytes.length}`); }
+      response.setHeader("Content-Length", end - start + 1);
+      response.end(bytes.subarray(start, end + 1));
+    } else if (url.pathname === "/markup.csv") {
+      response.end(csvContent);
+    } else if (url.pathname === "/large.txt") {
+      response.end("a".repeat(1024 * 1024 + 100));
+    } else if (url.pathname === "/image.png") {
       response.setHeader("Content-Type", "image/png");
       response.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=", "base64"));
     } else if (url.pathname === "/document.pdf") {
@@ -68,10 +89,13 @@ test.afterAll(async () => {
 
 const installFixtures = async (page: Page, options: {
   image?: boolean; pdf?: boolean; attachment?: boolean; failFirst?: boolean; gate?: Promise<void>; expiresIn?: number;
+  mimeType?: string; textWithoutCors?: boolean; largeText?: boolean;
 } = {}) => {
   let requested = 0;
   storageRequests.length = 0;
-  const record = options.image ? { ...file, mimeType: "image/png", category: "Images" } : options.pdf ? { ...file, mimeType: "application/pdf", originalName: "preview.pdf", size: Buffer.byteLength(pdfDocument) } : file;
+  const record = options.mimeType ? { ...file, mimeType: options.mimeType }
+    : options.image ? { ...file, mimeType: "image/png", category: "Images" }
+    : options.pdf ? { ...file, mimeType: "application/pdf", originalName: "preview.pdf", size: Buffer.byteLength(pdfDocument) } : file;
   await page.addInitScript(() => {
     if (location.origin === "http://127.0.0.1:4176") sessionStorage.setItem("clouddrop.access-token", "browser-fixture-session");
   });
@@ -95,13 +119,18 @@ const installFixtures = async (page: Page, options: {
       }
       data = { file: record, downloadUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
     } else if (path.endsWith("/view")) {
-      // Mirrors the backend: only PDFs and images get an inline link.
-      if (!["application/pdf", "image/png"].includes(record.mimeType)) {
+      if (record.mimeType === "application/zip") {
         await route.fulfill({ status: 415, json: { success: false, message: "Preview is not supported for this file type", error: { code: "PREVIEW_NOT_SUPPORTED" } } });
         return;
       }
-      const url = new URL(options.image ? "/image.png" : "/document.pdf", storageOrigin);
+      const path = options.image ? "/image.png" : options.pdf ? "/document.pdf"
+        : record.mimeType.startsWith("audio/") ? "/audio.wav"
+        : record.mimeType.startsWith("video/") ? "/video.webm"
+        : options.largeText ? "/large.txt" : record.mimeType === "text/csv" ? "/markup.csv" : "/object.txt";
+      const url = new URL(path, storageOrigin);
       url.searchParams.set("response-content-disposition", "inline");
+      url.searchParams.set("response-content-type", record.mimeType);
+      if (!options.textWithoutCors) url.searchParams.set("allowCors", "1");
       data = { file: record, viewUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
     } else if (path.endsWith(`/files/${file.id}`)) {
       data = { file: record };
@@ -229,7 +258,7 @@ test("View avoids PDF navigation when the browser has no inline PDF viewer", asy
 });
 
 test("View explains file types the backend cannot preview without requesting a link", async ({ page }) => {
-  const fixtures = await installFixtures(page);
+  const fixtures = await installFixtures(page, { mimeType: "application/zip" });
   const viewRequests: string[] = [];
   page.on("request", (request) => { if (new URL(request.url()).pathname.endsWith("/view")) viewRequests.push(request.url()); });
   await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
@@ -238,3 +267,71 @@ test("View explains file types the backend cannot preview without requesting a l
   expect(viewRequests).toEqual([]);
   expect(fixtures.storageRequests).toHaveLength(0);
 });
+
+test("View renders CSV as literal text without starting a download or exposing credentials", async ({ page }, info) => {
+  const fixtures = await installFixtures(page, { mimeType: "text/csv" });
+  const downloads: string[] = [];
+  page.on("download", download => downloads.push(download.suggestedFilename()));
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
+  const preview = page.getByRole("region", { name: `Preview of ${filename}`, exact: true });
+  await expect(preview).toHaveText(csvContent);
+  expect(await page.evaluate(() => "previewExecuted" in window)).toBe(false);
+  await expect(page.locator("iframe")).toHaveCount(0);
+  expect(downloads).toEqual([]);
+  // StrictMode may abort its initial GET after the server has received it.
+  expect(fixtures.storageRequests.length).toBeGreaterThan(0);
+  for (const request of fixtures.storageRequests) {
+    expect(request.headers.authorization).toBeUndefined();
+    expect(request.headers.cookie).toBeUndefined();
+    expect(request.headers.referer).toBeUndefined();
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations.map(({ id }) => id)).toEqual([]);
+  await page.screenshot({ path: info.outputPath("csv-preview-320.png"), fullPage: true });
+});
+
+test("a blocked text preview offers retry and Download without navigating to the file", async ({ page }) => {
+  await installFixtures(page, { textWithoutCors: true });
+  const downloads: string[] = [];
+  page.on("download", download => downloads.push(download.suggestedFilename()));
+  await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("The preview could not be loaded");
+  await expect(page.getByRole("button", { name: "Try again", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download", exact: true })).toBeVisible();
+  expect(downloads).toEqual([]);
+  await expect(page).toHaveURL(/\/files$/);
+});
+
+test("large text previews identify their bounded prefix", async ({ page }) => {
+  await installFixtures(page, { largeText: true });
+  await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
+  await expect(page.getByText("Showing the first 1 MB. Download the file to read the rest.")).toBeVisible();
+  await expect.poll(() => page.getByRole("region", { name: `Preview of ${filename}`, exact: true }).textContent().then(text => text?.length)).toBe(1024 * 1024);
+});
+
+for (const [mimeType, tag] of [["audio/wav", "audio"], ["video/webm", "video"]] as const) {
+  test(`View loads ${mimeType} media with controls and no automatic download`, async ({ page }) => {
+    const fixtures = await installFixtures(page, { mimeType });
+    const downloads: string[] = [];
+    page.on("download", download => downloads.push(download.suggestedFilename()));
+    await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
+    const media = page.locator(tag!);
+    await expect(media).toHaveAttribute("controls", "");
+    const canPlay = await media.evaluate((element, type) => (element as HTMLMediaElement).canPlayType(type!), mimeType);
+    if (canPlay) {
+      await expect.poll(() => media.evaluate(element => (element as HTMLMediaElement).readyState)).toBeGreaterThanOrEqual(1);
+      await media.evaluate(async element => {
+        const player = element as HTMLMediaElement;
+        player.muted = true;
+        await player.play();
+        player.pause();
+      });
+    } else await expect(page.getByRole("alert")).toContainText("The preview could not be loaded");
+    expect(downloads).toEqual([]);
+    expect(fixtures.storageRequests.length).toBeGreaterThan(0);
+    expect(fixtures.storageRequests.every(request => !request.headers.authorization)).toBe(true);
+    expect(page.context().pages()).toHaveLength(1);
+  });
+}
