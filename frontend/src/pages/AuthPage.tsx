@@ -253,7 +253,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
 
   return (
     <AuthLayout
-      title={isVerificationPage ? "Verify your email" : isRegister ? "Create your account" : "Welcome back!!"}
+      title={isVerificationPage ? "Verify your email" : isRegister ? "Create your account" : "Welcome back"}
       subtitle={isVerificationPage
         ? `Enter the six-digit verification code for ${verificationEmail}.`
         : isRegister ? "Your files, organized and within reach." : "Sign in to get back to your files."}
