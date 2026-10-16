@@ -344,14 +344,30 @@ export const loginUser = async (email: string, password: string) => {
   };
 };
 
-export const deleteAccount = async (userId: string) => {
+export const deleteAccount = async (
+  userId: string,
+  currentPassword: string,
+) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true },
+    select: { id: true, passwordHash: true },
   });
 
   if (!user) {
     throw new ApiError(404, "User not found", "USER_NOT_FOUND");
+  }
+
+  const passwordIsValid = await comparePassword(
+    currentPassword,
+    user.passwordHash,
+  );
+
+  if (!passwordIsValid) {
+    throw new ApiError(
+      401,
+      "Current password is incorrect",
+      "INVALID_CREDENTIALS",
+    );
   }
 
   const files = await prisma.file.findMany({
