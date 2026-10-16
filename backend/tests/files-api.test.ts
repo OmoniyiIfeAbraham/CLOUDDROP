@@ -1,9 +1,20 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { vi, describe, expect, it } from "vitest";
 import app from "../src/server.js";
 import { generateToken } from "../src/utils/auth.utils.js";
 
 const token = generateToken("validation-test-user");
+
+
+vi.mock("../src/services/auth.service.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../src/services/auth.service.js")>();
+
+  return {
+    ...actual,
+    getTokenVersionForAuth: vi.fn().mockResolvedValue(0),
+  };
+});
 
 describe("Files API validation", () => {
   it("rejects unauthenticated requests", async () => {
