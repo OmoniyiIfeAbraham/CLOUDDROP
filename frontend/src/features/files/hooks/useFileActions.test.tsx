@@ -179,18 +179,32 @@ describe("file actions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The preview could not be loaded");
   });
 
-  it("explains unsupported previews such as CSV without asking the backend", async () => {
-    const csv = { ...firstFile, mimeType: "text/csv", originalName: "records.csv" };
+
+  it("previews CSV inline without initiating a download", async () => {
+    const csv = {
+      ...firstFile,
+      mimeType: "text/csv",
+      originalName: "records.csv",
+    };
+
     const base = createMockFilesRepository({ files: [csv] });
     const getView = vi.fn((id: string) => base.getView(id));
+
     renderActions({ ...base, getView });
-    fireEvent.click(await screen.findByRole("button", { name: "View records.csv" }));
-    expect(await screen.findByText(/A browser preview is not available/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Download" })).toBeVisible();
-    expect(document.querySelector("iframe")).toBeNull();
-    expect(getView).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "View records.csv" }),
+    );
+
+    expect(
+      await screen.findByTitle("Preview of records.csv"),
+    ).toBeVisible();
+
+    expect(document.querySelector("iframe")).not.toBeNull();
+
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
   });
+
 
   it("explains a preview the backend refuses", async () => {
     const base = createMockFilesRepository();

@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/auth-context";
 import { AppLayout } from "../components/layout/AppLayout";
 import { AuthPage } from "../pages/AuthPage";
+import { ForgotPasswordPage, ResetPasswordPage } from "../pages/PasswordRecoveryPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { FilesPage } from "../pages/FilesPage";
 import { FileDetailsPage } from "../pages/FileDetailsPage";
@@ -41,6 +42,8 @@ const PublicOnly = () => {
 
 export const App = () => (
   <Routes>
+    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route element={<PublicOnly />}>
       <Route path="/login" element={<AuthPage key="login" mode="login" />} />
       <Route path="/register" element={<AuthPage key="register" mode="register" />} />
