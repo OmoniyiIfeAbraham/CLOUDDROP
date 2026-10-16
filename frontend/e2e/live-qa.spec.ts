@@ -102,7 +102,7 @@ test("live uploads, dashboard, pagination, filters, filename download, sharing a
     await qa.run("Separate View", "A supported plain-text file opens in the preview dialog without a download", async () => {
       await expect(page.getByRole("button", { name: `View ${document.originalName}`, exact: true })).toBeVisible();
       await page.getByRole("button", { name: `View ${document.originalName}`, exact: true }).click();
-      await expect(page.frameLocator(`iframe[title="Preview of ${document.originalName}"]`).locator("body")).toContainText(contents);
+      await expect(page.getByRole("region", { name: `Preview of ${document.originalName}`, exact: true })).toContainText(contents);
     });
     if (await page.getByRole("button", { name: "Close dialog" }).isVisible()) await page.getByRole("button", { name: "Close dialog" }).click();
     await qa.run("Sharing with anonymous retrieval", "A 1-hour share link returns the uploaded bytes without a JWT", async () => {

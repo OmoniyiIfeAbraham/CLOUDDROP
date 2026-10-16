@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Download, ExternalLink, Link2, Trash2 } from "lucide-react";
@@ -47,6 +47,10 @@ export const useFileActions = () => {
   const [copied, setCopied] = useState(false);
   const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
   const shareRequestId = useRef(0);
+  const handlePreviewError = useCallback(() => {
+    setDownloadUrl("");
+    setDownloadError("The preview could not be loaded. Try again or download the file to open it on your device.");
+  }, []);
 
   useEffect(() => () => {
     downloadRequestId.current += 1;
@@ -226,7 +230,7 @@ export const useFileActions = () => {
           {downloadError && <div className="inline-alert" role="alert">{downloadError}</div>}
           {fileAction === "view" && downloadTarget && !canPreviewInBrowser(downloadTarget.mimeType) && <FilePreviewUnavailable />}
           {downloadUrl && downloadTarget && (fileAction === "view" ? (
-            <div className="file-preview"><FilePreview file={downloadTarget} url={downloadUrl} onError={() => { setDownloadUrl(""); setDownloadError("The preview could not be loaded. Please try again."); }} /></div>
+            <div className="file-preview"><FilePreview file={downloadTarget} url={downloadUrl} onError={handlePreviewError} /></div>
           ) : <p className="dialog__intro" role="status">Your download has been requested. Check your browser’s downloads. If it did not start, use Save file below.</p>)}
           <div className="dialog__actions">
             <button className="button button--secondary" type="button" onClick={closeDownload}>{downloadLoading ? "Cancel" : "Close"}</button>
