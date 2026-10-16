@@ -33,6 +33,15 @@ describe("demo auth service", () => {
     ).resolves.toEqual(registration.user);
   });
 
+  it("forgets a deleted demo account", async () => {
+    await mockAuthService.login({ email: "ada@example.com", password: "securepass123" });
+    expect(sessionStorage.getItem("clouddrop.demo-user")).not.toBeNull();
+
+    await mockAuthService.deleteAccount();
+
+    expect(sessionStorage.getItem("clouddrop.demo-user")).toBeNull();
+  });
+
   it("rejects an unknown session token", async () => {
     await expect(
       mockAuthService.me("expired"),

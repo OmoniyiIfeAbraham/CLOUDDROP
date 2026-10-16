@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
+  const [notice, setNotice] = useState<string | null>(null);
   const sessionVersion = useRef(0);
 
   const logout = useCallback(() => {
@@ -86,6 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sessionVersion.current += 1;
     queryClient.clear();
     sessionToken.set(result.token);
+    setNotice(null);
     setUser(result.user);
     setStatus("authenticated");
   }, [queryClient]);
@@ -106,6 +108,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await service.resendVerificationEmail(email);
   }, []);
 
+  // Signs out only after the backend confirms the deletion; a failure keeps the session.
+  const deleteAccount = useCallback(async () => {
+    await service.deleteAccount();
+    logout();
+    setNotice("Your account and all of its files have been deleted.");
+  }, [logout]);
+
   const value = useMemo(
     () => ({
       user,
@@ -116,6 +125,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       resendVerificationEmail,
       logout,
       retryRestore,
+      deleteAccount,
+      notice,
     }),
     [
       user,
@@ -126,6 +137,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       resendVerificationEmail,
       logout,
       retryRestore,
+      deleteAccount,
+      notice,
     ],
   );
 

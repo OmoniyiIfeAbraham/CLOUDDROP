@@ -26,6 +26,8 @@ const renderAuthPage = (
     }),
     logout: () => {},
     retryRestore: async () => {},
+    deleteAccount: async () => {},
+    notice: null,
     ...overrides,
   };
 
@@ -63,6 +65,13 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   sessionStorage.clear();
+});
+
+describe("signed-out notices", () => {
+  it("confirms a deleted account on the sign-in page", () => {
+    renderAuthPage("login", { notice: "Your account and all of its files have been deleted." });
+    expect(screen.getByRole("status")).toHaveTextContent("Your account and all of its files have been deleted.");
+  });
 });
 
 describe("sign-in and registration errors", () => {

@@ -40,6 +40,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
     register,
     verifyEmail,
     resendVerificationEmail,
+    notice,
   } = useAuth();
 
   const navigate = useNavigate();
@@ -348,6 +349,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
                 noValidate
                 aria-busy={isSubmitting}
               >
+                {notice && <p className="auth-notice" role="status">{notice}</p>}
                 {isRegister && (
                   <div className="form-grid">
                     <label className="field">

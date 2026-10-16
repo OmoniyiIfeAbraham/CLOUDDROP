@@ -11,11 +11,13 @@ import { httpAuthService } from "./auth-service";
 const user = { id: "user-one", firstName: "Ada", lastName: "Okafor", email: "ada@example.com" };
 
 const AuthProbe = () => {
-  const { status, user: currentUser, login, logout, retryRestore } = useAuth();
+  const { status, user: currentUser, login, logout, retryRestore, deleteAccount, notice } = useAuth();
   return (
     <>
       <output data-testid="auth-status">{status}</output>
+      <output data-testid="auth-notice">{notice}</output>
       <span>{currentUser?.email}</span>
+      <button type="button" onClick={() => void deleteAccount().catch(() => {})}>Delete account</button>
       <button type="button" onClick={logout}>Sign out</button>
       <button type="button" onClick={() => void retryRestore()}>Retry restore</button>
       <button type="button" onClick={() => void login({ email: "next@example.com", password: "securepass123" })}>Switch account</button>
@@ -102,5 +104,38 @@ describe("AuthProvider session boundaries", () => {
     renderAuth();
     await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("anonymous"));
     expect(sessionToken.get()).toBeNull();
+  });
+});
+
+describe("AuthProvider account deletion", () => {
+  it("signs out, clears the token and cache, and leaves a notice after the backend confirms", async () => {
+    sessionToken.set("stored-token");
+    vi.spyOn(httpAuthService, "me").mockResolvedValue(user);
+    const remove = vi.spyOn(httpAuthService, "deleteAccount").mockResolvedValue();
+    const queryClient = renderAuth();
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete account" }));
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("anonymous"));
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(sessionToken.get()).toBeNull();
+    expect(queryClient.getQueryData(["files", "all"])).toBeUndefined();
+    expect(screen.getByTestId("auth-notice")).toHaveTextContent("Your account and all of its files have been deleted.");
+  });
+
+  it("keeps the session when the backend refuses the deletion", async () => {
+    sessionToken.set("stored-token");
+    vi.spyOn(httpAuthService, "me").mockResolvedValue(user);
+    vi.spyOn(httpAuthService, "deleteAccount").mockRejectedValue(
+      new ApiError({ message: "Cleanup failed", code: "S3_CLEANUP_FAILED", status: 502, retryable: true }),
+    );
+    renderAuth();
+    await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete account" }));
+    await waitFor(() => expect(httpAuthService.deleteAccount).toHaveBeenCalled());
+    expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated");
+    expect(sessionToken.get()).toBe("stored-token");
+    expect(screen.getByTestId("auth-notice")).toBeEmptyDOMElement();
   });
 });

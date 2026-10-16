@@ -23,6 +23,9 @@ const knownMessages: Record<string, string> = {
   DOWNLOAD_FAILED: "The download link could not be created.",
   PREVIEW_NOT_SUPPORTED: "A preview is not available for this file type. Use Download to save it.",
   SHARE_FAILED: "The share link could not be created.",
+  USER_NOT_FOUND: "This account no longer exists. Sign out to continue.",
+  S3_CLEANUP_FAILED: "Your account was not deleted because some files could not be removed. Some files may already be gone. Please try again.",
+  ACCOUNT_DELETE_FAILED: "Your files were removed, but your account could not be deleted. Please try again.",
 };
 
 // A 404 only means "this file is gone" when the request was about one file.

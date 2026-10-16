@@ -80,6 +80,19 @@ test("workspace and file actions meet automated accessibility checks", async ({ 
   await audit(page, "upload queue and validation");
 });
 
+test("account page and delete dialog meet automated accessibility checks", async ({ page, isMobile }) => {
+  await signIn(page);
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("link", { name: "Account" }).click();
+  await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
+  await audit(page, "Account page");
+  await page.getByRole("button", { name: "Delete account" }).click();
+  await expect(page.getByRole("dialog", { name: "Delete your account?" })).toBeVisible();
+  await audit(page, "Delete account dialog");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Delete account" })).toBeFocused();
+});
+
 test("keyboard navigation and dialog focus remain usable", async ({ page, isMobile }) => {
   await signIn(page);
   await page.goto("/files");

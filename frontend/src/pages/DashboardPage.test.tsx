@@ -34,6 +34,8 @@ const renderDashboard = (repository: FilesRepository) => {
   }),
           logout: () => {},
           retryRestore: async () => {},
+          deleteAccount: async () => {},
+          notice: null,
         }}>
           <FilesContext.Provider value={repository}>
             <ToastProvider><DashboardPage /></ToastProvider>

@@ -197,3 +197,34 @@ test("upload categories are automatic and cannot be edited", async ({ page }, te
   for (const file of files) await expect(page.getByRole("listitem").filter({ hasText: file.name })).toContainText(`Uploaded to ${file.category}`);
   await expect(page.getByRole("combobox")).toHaveCount(0);
 });
+
+test("delete an account after confirmation and sign out", async ({ page, isMobile }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email address").fill("demo@clouddrop.app");
+  await page.getByLabel("Password", { exact: true }).fill("securepass123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: /Good to see you/ })).toBeVisible();
+
+  if (isMobile) await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("link", { name: "Account" }).click();
+  await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
+  await expect(page.getByText("demo@clouddrop.app").last()).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete account" }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete your account?" });
+  await expect(dialog.getByText(/all 6 of your files/)).toBeVisible();
+  const confirm = dialog.getByRole("button", { name: "Delete account" });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole("button", { name: "Delete account" }).click();
+  await dialog.getByLabel("Type DELETE to confirm").fill("DELETE");
+  await confirm.click();
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("status")).toHaveText("Your account and all of its files have been deleted.");
+  expect(await page.evaluate(() => sessionStorage.getItem("clouddrop.access-token"))).toBeNull();
+  await page.goto("/files");
+  await expect(page).toHaveURL(/\/login$/);
+});

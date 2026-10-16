@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Cloud, Files, House, LogOut, Menu, UploadCloud, X } from "lucide-react";
+import { Cloud, Files, House, LogOut, Menu, UploadCloud, UserRound, X } from "lucide-react";
 import { useAuth } from "../../features/auth/auth-context";
 import { useUploadQueue } from "../../features/upload/upload-queue-context";
 import { USE_MOCK_API } from "../../lib/runtime";
@@ -27,7 +27,9 @@ export const AppLayout = () => {
     ? "My files"
     : location.pathname.startsWith("/upload")
       ? "Upload"
-      : "Overview";
+      : location.pathname.startsWith("/account")
+        ? "Account"
+        : "Overview";
   usePageTitle(currentTitle);
   const uploadsLeft = queue.filter((item) => item.status === "ready" || item.status === "uploading").length;
   const showUploadStatus = uploading && !location.pathname.startsWith("/upload");
@@ -114,6 +116,7 @@ export const AppLayout = () => {
             <div className="avatar" aria-hidden="true">{user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</div>
             <div className="sidebar__account-text"><strong>{user?.firstName} {user?.lastName}</strong><span>{user?.email}</span></div>
           </div>
+          <NavLink to="/account" onClick={navigateToContent} className={({ isActive }) => `sidebar__link ${isActive ? "sidebar__link--active" : ""}`}><UserRound size={18} /> Account</NavLink>
           <button className="sidebar__link sidebar__signout" type="button" onClick={signOut}><LogOut size={18} /> Sign out</button>
         </div>
       </aside>

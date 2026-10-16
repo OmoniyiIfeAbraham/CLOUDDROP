@@ -2,7 +2,7 @@
 
 React, TypeScript, and Vite application for CloudDrop's authenticated file workspace.
 
-For how the app works, see [How the CloudDrop frontend works](docs/frontend-flows.md). It covers the pages, sessions, sign-up and password reset, upload, View, Download, Share and Delete, and the API call behind each step.
+For how the app works, see [How the CloudDrop frontend works](docs/frontend-flows.md). It covers the pages, sessions, sign-up, password reset and account deletion, upload, View, Download, Share and Delete, and the API call behind each step.
 
 ## Run locally
 
