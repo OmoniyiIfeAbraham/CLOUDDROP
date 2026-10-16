@@ -19,11 +19,25 @@ export interface FileRecord {
   updatedAt: string;
 }
 
-export type FileDisposition = "attachment" | "inline";
+// Mirrors INLINE_PREVIEW_MIME_TYPES in backend/src/controllers/files.controller.ts:
+// GET /files/:id/view answers 415 PREVIEW_NOT_SUPPORTED for any other type.
+export const PREVIEWABLE_MIME_TYPES: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
 
 export interface DownloadResult {
   file: Pick<FileRecord, "id" | "mimeType" | "originalName" | "size">;
   downloadUrl: string;
+  expiresIn: number;
+}
+
+export interface ViewResult {
+  file: Pick<FileRecord, "id" | "mimeType" | "originalName" | "size">;
+  viewUrl: string;
   expiresIn: number;
 }
 

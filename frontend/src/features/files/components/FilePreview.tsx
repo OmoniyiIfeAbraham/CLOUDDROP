@@ -1,4 +1,6 @@
+
 import type { FileRecord } from "../model/file.types";
+import { canPreviewInBrowser } from "../lib/file-preview";
 
 const IMAGE_TYPES = [
   "image/jpeg",
@@ -40,6 +42,10 @@ export const FilePreview = ({
 }) => {
   const type = file.mimeType.toLowerCase();
   const extension = file.originalName.split(".").pop()?.toLowerCase() ?? "";
+
+  if (!canPreviewInBrowser(type)) {
+    return <FilePreviewUnavailable />;
+  }
 
   if (IMAGE_TYPES.includes(type)) {
     return (
@@ -85,12 +91,7 @@ export const FilePreview = ({
       typeof navigator !== "undefined" &&
       navigator.pdfViewerEnabled === false
     ) {
-      return (
-        <p className="dialog__intro">
-          A browser preview is not available for this file type. Download the
-          file to open it on your device.
-        </p>
-      );
+      return <FilePreviewUnavailable />;
     }
 
     return (
@@ -98,7 +99,6 @@ export const FilePreview = ({
         className="file-preview__document"
         src={url}
         title={`Preview of ${file.originalName}`}
-        sandbox="allow-same-origin"
         referrerPolicy="no-referrer"
       />
     );
@@ -117,10 +117,12 @@ export const FilePreview = ({
     );
   }
 
-  return (
-    <p className="dialog__intro">
-      A browser preview is not available for this file type. Download the file
-      to open it on your device.
-    </p>
-  );
+  return <FilePreviewUnavailable />;
 };
+
+export const FilePreviewUnavailable = () => (
+  <p className="dialog__intro">
+    A browser preview is not available for this file type. Download the file
+    to open it on your device.
+  </p>
+);

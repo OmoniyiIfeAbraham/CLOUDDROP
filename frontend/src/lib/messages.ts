@@ -16,6 +16,7 @@ const knownMessages: Record<string, string> = {
   SEARCH_FAILED: "Search could not be completed.",
   DELETE_FAILED: "The file could not be deleted.",
   DOWNLOAD_FAILED: "The download link could not be created.",
+  PREVIEW_NOT_SUPPORTED: "A preview is not available for this file type. Use Download to save it.",
   SHARE_FAILED: "The share link could not be created.",
 };
 

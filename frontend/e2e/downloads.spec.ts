@@ -94,6 +94,15 @@ const installFixtures = async (page: Page, options: {
         url.searchParams.set("response-content-type", "application/octet-stream");
       }
       data = { file: record, downloadUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
+    } else if (path.endsWith("/view")) {
+      // Mirrors the backend: only PDFs and images get an inline link.
+      if (!["application/pdf", "image/png"].includes(record.mimeType)) {
+        await route.fulfill({ status: 415, json: { success: false, message: "Preview is not supported for this file type", error: { code: "PREVIEW_NOT_SUPPORTED" } } });
+        return;
+      }
+      const url = new URL(options.image ? "/image.png" : "/document.pdf", storageOrigin);
+      url.searchParams.set("response-content-disposition", "inline");
+      data = { file: record, viewUrl: url.toString(), expiresIn: options.expiresIn ?? 600 };
     } else if (path.endsWith(`/files/${file.id}`)) {
       data = { file: record };
     } else if (path.endsWith("/files")) {
@@ -127,7 +136,7 @@ test("a signed attachment saves the original filename and bytes without CORS", a
 });
 
 test("Download refuses inline links and View opens a separate preview", async ({ page }, testInfo) => {
-  const fixtures = await installFixtures(page);
+  const fixtures = await installFixtures(page, { image: true });
   await page.setViewportSize({ width: 320, height: 700 });
   await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Direct download is not available");
@@ -135,9 +144,9 @@ test("Download refuses inline links and View opens a separate preview", async ({
   expect(fixtures.storageRequests).toHaveLength(0);
   await page.getByRole("button", { name: "View file", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "View file" })).toBeVisible();
-  await expect(page.frameLocator(`iframe[title="Preview of ${filename}"]`).locator("body")).toContainText(content.trim());
-  // Uploaded document contents are external; verify the titled frame separately from the owned dialog.
-  const results = await new AxeBuilder({ page }).exclude(".file-preview iframe").analyze();
+  const image = page.getByRole("img", { name: filename });
+  await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.map(({ id }) => id)).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("view-preview-320.png"), fullPage: true });
@@ -217,4 +226,15 @@ test("View avoids PDF navigation when the browser has no inline PDF viewer", asy
   await expect(page.locator("iframe")).toHaveCount(0);
   expect(fixtures.storageRequests).toHaveLength(0);
   expect(downloads).toEqual([]);
+});
+
+test("View explains file types the backend cannot preview without requesting a link", async ({ page }) => {
+  const fixtures = await installFixtures(page);
+  const viewRequests: string[] = [];
+  page.on("request", (request) => { if (new URL(request.url()).pathname.endsWith("/view")) viewRequests.push(request.url()); });
+  await page.getByRole("button", { name: `View ${filename}`, exact: true }).click();
+  await expect(page.getByText("A browser preview is not available for this file type. Download the file to open it on your device.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download", exact: true })).toBeVisible();
+  expect(viewRequests).toEqual([]);
+  expect(fixtures.storageRequests).toHaveLength(0);
 });

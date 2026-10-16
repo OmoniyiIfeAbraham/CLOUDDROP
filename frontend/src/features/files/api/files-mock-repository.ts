@@ -14,7 +14,9 @@ import type {
   FilePage,
   FileRecord,
   ShareResult,
+  ViewResult,
 } from "../model/file.types";
+import { PREVIEWABLE_MIME_TYPES } from "../model/file.types";
 
 export type MockFilesOperation =
   | "categories"
@@ -24,7 +26,8 @@ export type MockFilesOperation =
   | "list"
   | "search"
   | "share"
-  | "stats";
+  | "stats"
+  | "view";
 
 export interface MockFilesRepositoryOptions {
   files?: FileRecord[];
@@ -105,6 +108,26 @@ export const createMockFilesRepository = (
           size: file.size,
         },
         downloadUrl: "https://example.invalid/download/" + encodeURIComponent(file.id),
+        expiresIn: 600,
+      };
+    },
+
+    async getView(fileId: string): Promise<ViewResult> {
+      failWhenConfigured("view");
+      const file = findFile(fileId);
+
+      if (!PREVIEWABLE_MIME_TYPES.has(file.mimeType)) {
+        throw new ApiError({ message: "Preview is not supported for this file type", code: "PREVIEW_NOT_SUPPORTED", status: 415 });
+      }
+
+      return {
+        file: {
+          id: file.id,
+          originalName: file.originalName,
+          mimeType: file.mimeType,
+          size: file.size,
+        },
+        viewUrl: "https://example.invalid/view/" + encodeURIComponent(file.id),
         expiresIn: 600,
       };
     },
