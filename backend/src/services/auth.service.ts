@@ -356,19 +356,34 @@ export const deleteAccount = async (userId: string) => {
 
   const files = await prisma.file.findMany({
     where: { userId },
-    select: { s3Key: true },
+    select: {
+      id: true,
+      s3Key: true,
+    },
   });
 
-  try {
-    for (const file of files) {
+  for (const file of files) {
+    try {
       await deleteFromS3(file.s3Key);
+    } catch {
+      throw new ApiError(
+        502,
+        "File cleanup was incomplete. Your account has not been deleted. Some stored files may already have been removed. Please contact support.",
+        "S3_CLEANUP_FAILED",
+      );
     }
-  } catch {
-    throw new ApiError(
-      502,
-      "File cleanup was incomplete. Your account has not been deleted; some stored files may already have been removed. Please contact support.",
-      "S3_CLEANUP_FAILED",
-    );
+
+    try {
+      await prisma.file.delete({
+        where: { id: file.id },
+      });
+    } catch {
+      throw new ApiError(
+        500,
+        "A stored file was removed, but its database record could not be cleaned up. Your account has not been deleted. Please contact support.",
+        "ACCOUNT_DELETE_FAILED",
+      );
+    }
   }
 
   try {
