@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthLayout } from "../components/layout/AuthLayout";
@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "../features/auth/auth-context";
+import { isApiError } from "../features/files/api/api-error";
 import { userMessage } from "../lib/messages";
 import { USE_MOCK_API } from "../lib/runtime";
 import { usePageTitle } from "../lib/use-page-title";
@@ -13,7 +14,7 @@ import { usePageTitle } from "../lib/use-page-title";
 const authSchema = z.object({
   firstName: z.string().trim().optional(),
   lastName: z.string().trim().optional(),
-  email: z.email("Enter a valid email address"),
+  email: z.string().trim().pipe(z.email("Enter a valid email address")),
   password: z.string().min(8, "Use at least 8 characters"),
 });
 
@@ -23,9 +24,14 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   const fieldId = useId();
   const [showPassword, setShowPassword] = useState(false);
   const [requestError, setRequestError] = useState("");
+  const [requestNotice, setRequestNotice] = useState("");
+  const [recoveryEmail, setRecoveryEmail] = useState("");
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [alreadyVerified, setAlreadyVerified] = useState(false);
+  const codeInput = useRef<HTMLInputElement>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -39,10 +45,11 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isRegister = mode === "register";
-  const isVerificationPage = isRegister && verificationStep;
+  const isVerificationPage = verificationStep;
+  const initialEmail = (location.state as { email?: unknown } | null)?.email;
 
   usePageTitle(
-    isVerificationPage
+    alreadyVerified ? "Email already verified" : isVerificationPage
       ? "Verify your email"
       : isRegister
         ? "Create account"
@@ -52,6 +59,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   const {
     register: bind,
     handleSubmit,
+    resetField,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(
@@ -78,7 +86,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
     defaultValues: {
       firstName: "",
       lastName: "",
-      email: "",
+      email: typeof initialEmail === "string" ? initialEmail : "",
       password: "",
     },
   });
@@ -91,8 +99,32 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
     );
   };
 
+  const openVerification = (email: string, notice: string, error = "") => {
+    setVerificationEmail(email.trim().toLowerCase());
+    setVerificationCode("");
+    setCodeError("");
+    setRecoveryEmail("");
+    setAlreadyVerified(false);
+    setRequestNotice(notice);
+    setRequestError(error);
+    resetField("password");
+    setShowPassword(false);
+    setVerificationStep(true);
+  };
+
+  const closeVerification = () => {
+    setVerificationStep(false);
+    setAlreadyVerified(false);
+    setVerificationCode("");
+    setCodeError("");
+    setRequestError("");
+    setRequestNotice("");
+  };
+
   const submit = handleSubmit(async (values) => {
     setRequestError("");
+    setRequestNotice("");
+    setRecoveryEmail("");
 
     try {
       if (isRegister) {
@@ -102,9 +134,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
           lastName: (values.lastName ?? "").trim(),
         });
 
-        setVerificationEmail(result.user.email);
-        setVerificationCode("");
-        setVerificationStep(true);
+        openVerification(result.user.email, "Check your inbox and spam folder for your verification code.");
         return;
       }
 
@@ -115,11 +145,29 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
 
       navigateAfterAuth();
     } catch (error) {
+      if (isApiError(error)) {
+        if (isRegister && error.code === "VERIFICATION_EMAIL_FAILED") {
+          openVerification(values.email,
+            "Your account was created. Request a new verification code to finish setting up your account.",
+            userMessage(error));
+          return;
+        }
+        if (!isRegister && error.code === "EMAIL_NOT_VERIFIED") {
+          openVerification(values.email, userMessage(error));
+          return;
+        }
+        if (isRegister && (error.code === "EMAIL_ALREADY_REGISTERED" ||
+          error.code === "NETWORK_ERROR" || (error.status !== undefined && error.status >= 500))) {
+          // A failed delivery or lost response can leave an account awaiting verification.
+          // Offer recovery without asserting whether an ambiguous request created one.
+          setRecoveryEmail(values.email.trim().toLowerCase());
+        }
+      }
       setRequestError(
         userMessage(
           error,
           isRegister
-            ? "We could not create your account. Please try again."
+            ? "We could not confirm account creation. If you already submitted this form, try signing in or finishing email verification."
             : "Sign in failed. Check your details and try again.",
         ),
       );
@@ -131,11 +179,13 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
   ) => {
     event.preventDefault();
     setRequestError("");
+    setCodeError("");
 
     const code = verificationCode.trim();
 
     if (!/^\d{6}$/.test(code)) {
-      setRequestError("Enter the six-digit verification code.");
+      setCodeError("Enter the six-digit verification code.");
+      codeInput.current?.focus();
       return;
     }
 
@@ -145,6 +195,16 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
       await verifyEmail(verificationEmail, code);
       navigateAfterAuth();
     } catch (error) {
+      if (isApiError(error) && error.code === "EMAIL_ALREADY_VERIFIED") {
+        setAlreadyVerified(true);
+        setVerificationCode("");
+        return;
+      }
+      if (isApiError(error) && ["INVALID_VERIFICATION_CODE", "VERIFICATION_ATTEMPTS_EXCEEDED"].includes(error.code)) {
+        setCodeError(userMessage(error));
+        codeInput.current?.focus();
+        return;
+      }
       setRequestError(
         userMessage(
           error,
@@ -158,14 +218,17 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
 
   const resendCode = async () => {
     setRequestError("");
+    setRequestNotice("");
+    setCodeError("");
+    setVerificationCode("");
     setIsResending(true);
 
     try {
       await resendVerificationEmail(verificationEmail);
-      setRequestError(
+      setRequestNotice(
         USE_MOCK_API
           ? "Demo mode: use the verification code shown below."
-          : "If the account is eligible, a new verification email will be sent.",
+          : "If the account is eligible, a new verification email will be sent. Check your inbox and spam folder, and allow a minute between requests.",
       );
     } catch (error) {
       setRequestError(
@@ -179,15 +242,25 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
     }
   };
 
+  if (alreadyVerified) {
+    return <AuthLayout key="already-verified" title="Email already verified"
+      subtitle="Your email is already verified. Sign in to continue." focusTitle>
+      <Link className="button button--primary auth-submit" to="/login"
+        state={{ email: verificationEmail, from: destination }} onClick={closeVerification}>Sign in</Link>
+    </AuthLayout>;
+  }
+
   return (
     <AuthLayout
       title={isVerificationPage ? "Verify your email" : isRegister ? "Create your account" : "Welcome back"}
       subtitle={isVerificationPage
         ? `Enter the six-digit verification code for ${verificationEmail}.`
         : isRegister ? "Your files, organized and within reach." : "Sign in to get back to your files."}
+      focusTitle={isVerificationPage}
     >
           {isVerificationPage ? (
             <>
+              {requestNotice && <p className="auth-notice" role="status">{requestNotice}</p>}
               <form
                 className="auth-form"
                 onSubmit={submitVerification}
@@ -199,23 +272,26 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
                     Verification code
                   </span>
                   <input
+                    ref={codeInput}
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     placeholder="Enter 6-digit code"
                     maxLength={6}
                     value={verificationCode}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setCodeError("");
                       setVerificationCode(
                         event.target.value.replace(/\D/g, "").slice(0, 6),
-                      )
-                    }
+                      );
+                    }}
                     aria-labelledby={`${fieldId}-code-label`}
-                    aria-invalid={!!requestError}
+                    aria-invalid={!!codeError}
                     aria-describedby={
-                      requestError ? `${fieldId}-verification-error` : undefined
+                      codeError ? `${fieldId}-code-error` : undefined
                     }
                   />
+                  {codeError && <small id={`${fieldId}-code-error`} role="alert">{codeError}</small>}
                 </label>
 
                 {requestError && (
@@ -244,7 +320,7 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
               </form>
 
               <button
-                className="button auth-submit"
+                className="button button--secondary auth-submit"
                 type="button"
                 onClick={() => void resendCode()}
                 disabled={isResending || isVerifying}
@@ -256,14 +332,11 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
                 Wrong email?{" "}
                 <button
                   type="button"
-                  className="link-button"
-                  onClick={() => {
-                    setVerificationStep(false);
-                    setVerificationCode("");
-                    setRequestError("");
-                  }}
+                  className="text-button"
+                  disabled={isResending || isVerifying}
+                  onClick={closeVerification}
                 >
-                  Back to registration
+                  {isRegister ? "Back to registration" : "Back to sign in"}
                 </button>
               </p>
             </>
@@ -325,7 +398,10 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
-                    {...bind("email")}
+                    {...bind("email", { onChange: () => {
+                      setRecoveryEmail("");
+                      setRequestError("");
+                    } })}
                     aria-labelledby={`${fieldId}-email-label`}
                     aria-invalid={!!errors.email}
                     aria-describedby={
@@ -396,6 +472,13 @@ export const AuthPage = ({ mode }: { mode: "login" | "register" }) => {
                     {requestError}
                   </div>
                 )}
+
+                {recoveryEmail && <div className="auth-recovery-actions">
+                  <p>If you already signed up, sign in. If your email is still unverified, finish verification.</p>
+                  <Link className="button button--secondary" to="/login" state={{ email: recoveryEmail, from: destination }}>Sign in instead</Link>
+                  <button className="button button--secondary" type="button" onClick={() => openVerification(recoveryEmail,
+                    "If this account still needs verification, enter your code or request a new one.")}>Finish email verification</button>
+                </div>}
 
                 {!isRegister && <Link className="auth-recovery-link" to="/forgot-password">Forgot password?</Link>}
 

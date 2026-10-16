@@ -44,6 +44,8 @@ Live registration now completes email verification before receiving a session to
 
 Password recovery is available through the sign-in page, `/forgot-password` and `/reset-password?token=…`. See [the password recovery handoff](docs/password-recovery-handoff.md) for the API contract, origin-only backend `FRONTEND_URL`, isolated reset-email tests and coordinated rollout checklist.
 
+Registration email failures and unverified sign-ins can resume email verification and request a replacement code. See [verification recovery](docs/auth-verification-recovery.md) for the reported error sequence, isolated reproduction and email-delivery handoff.
+
 The download fixture suite starts the app in HTTP API mode and a separate local HTTPS file server, then tests desktop Chromium, mobile Chromium, and mobile WebKit without a backend database or S3. It checks saved bytes/Unicode filenames, inline-link rejection, separate previewing, cancellation, retry, expiry, narrow layout, and explicit dialog focus restoration. It requires `openssl` to generate disposable test certificates; certificate checking is relaxed only in this local fixture configuration.
 
 
