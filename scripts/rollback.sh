@@ -1,72 +1,96 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+COMPOSE_FILE="docker-compose.prod.yml"
+PUBLIC_HEALTH_URL="https://clouddrop-c8.duckdns.org/health"
 
-if [ -z "$1" ]; then
-  echo "Usage: ./scripts/rollback.sh <image-tag>"
-  echo "Example: ./scripts/rollback.sh abc123456"
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <backend-image-tag> <frontend-image-tag>"
   exit 1
 fi
 
-IMAGE_TAG="$1"
-IMAGE="ghcr.io/omoniyiifeabraham/clouddrop-backend:${IMAGE_TAG}"
+# Accept Docker-compatible tag characters and reject malformed input.
+validate_tag() {
+  local tag="$1"
+  local name="$2"
 
-echo "Starting CloudDrop rollback..."
-echo "Target image: ${IMAGE}"
-
-echo "Pulling rollback image..."
-docker pull "$IMAGE"
-
-echo "Updating backend image..."
-export BACKEND_IMAGE="$IMAGE"
-
-echo "Restarting backend..."
-docker compose -f docker-compose.prod.yml up -d backend
-
-echo "Waiting for backend health check..."
-
-for i in {1..12}; do
-  STATUS=$(docker inspect --format='{{.State.Health.Status}}' clouddrop-backend 2>/dev/null || true)
-
-  if [ "$STATUS" = "healthy" ]; then
-    echo "Backend is healthy."
-    break
+  if [[ ! "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+    echo "ERROR: Invalid ${name} image tag: ${tag}" >&2
+    return 1
   fi
+}
 
-  echo "Backend status: ${STATUS:-starting}"
-  sleep 5
-done
+validate_tag "$1" "backend"
+validate_tag "$2" "frontend"
 
-FINAL_STATUS=$(docker inspect --format='{{.State.Health.Status}}' clouddrop-backend 2>/dev/null || true)
+BACKEND_IMAGE="ghcr.io/omoniyiifeabraham/clouddrop-backend:$1"
+FRONTEND_IMAGE="ghcr.io/omoniyiifeabraham/clouddrop-frontend:$2"
 
-if [ "$FINAL_STATUS" != "healthy" ]; then
-  echo "Rollback failed. Backend did not become healthy."
-  docker compose -f docker-compose.prod.yml logs --tail=100 backend
-  exit 1
-fi
+echo "Pulling both rollback images before changing services..."
+docker pull "$BACKEND_IMAGE"
+docker pull "$FRONTEND_IMAGE"
 
-echo "Checking Nginx..."
+export BACKEND_IMAGE FRONTEND_IMAGE
+
+echo "Checking Nginx configuration..."
+docker compose -f "$COMPOSE_FILE" run --rm --no-deps nginx nginx -t
+
+echo "Applying rollback image pair..."
+docker compose -f "$COMPOSE_FILE" up -d backend frontend
+
+wait_healthy() {
+  local container="$1"
+  local status=""
+  for _ in $(seq 1 24); do
+    status=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$container" 2>/dev/null || true)
+    if [ "$status" = "healthy" ]; then
+      echo "$container is healthy."
+      return 0
+    fi
+    echo "$container health: ${status:-unknown}"
+    sleep 5
+  done
+  echo "ERROR: $container did not become healthy."
+  docker compose -f "$COMPOSE_FILE" logs --tail=100 "${container#clouddrop-}" || true
+  return 1
+}
+
+wait_healthy clouddrop-backend
+wait_healthy clouddrop-frontend
+
+echo "Restarting Nginx..."
+docker compose -f "$COMPOSE_FILE" restart nginx
 
 NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' clouddrop-nginx 2>/dev/null || true)
-
 if [ "$NGINX_STATUS" != "running" ]; then
   echo "ERROR: Nginx is not running."
   exit 1
 fi
 
-echo "Nginx is running."
+ACTUAL_BACKEND=$(docker inspect --format='{{.Config.Image}}' clouddrop-backend)
+ACTUAL_FRONTEND=$(docker inspect --format='{{.Config.Image}}' clouddrop-frontend)
 
-echo "Checking public health endpoint..."
-
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || true)
-
-if [ "$HTTP_STATUS" != "200" ]; then
-  echo "ERROR: Health endpoint returned HTTP ${HTTP_STATUS:-unknown}."
+if [ "$ACTUAL_BACKEND" != "$BACKEND_IMAGE" ]; then
+  echo "ERROR: Backend image mismatch: $ACTUAL_BACKEND"
+  exit 1
+fi
+if [ "$ACTUAL_FRONTEND" != "$FRONTEND_IMAGE" ]; then
+  echo "ERROR: Frontend image mismatch: $ACTUAL_FRONTEND"
   exit 1
 fi
 
-echo "Health endpoint returned HTTP 200."
+HTTP_STATUS=$(curl --silent --show-error --max-time 15 \
+  --output /dev/null --write-out '%{http_code}' "$PUBLIC_HEALTH_URL") || {
+    echo "ERROR: Could not reach $PUBLIC_HEALTH_URL"
+    exit 1
+  }
 
-echo
-echo "CloudDrop rollback completed successfully."
-echo "Rolled back to: ${IMAGE}"
+if [ "$HTTP_STATUS" != "200" ]; then
+  echo "ERROR: Public health endpoint returned HTTP $HTTP_STATUS."
+  exit 1
+fi
+
+echo "Rollback verification successful."
+echo "Backend image: $ACTUAL_BACKEND"
+echo "Frontend image: $ACTUAL_FRONTEND"
+echo "Public health endpoint: HTTP 200"

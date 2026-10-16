@@ -115,21 +115,26 @@ Expected response:
 
 ## 8. Rollback
 
-If a deployment fails, a previous backend image can be restored using its Git commit SHA.
+Rollback restores a previously published backend and frontend image pair.
+Use commit SHA tags from a release verified as working.
 
-Example:
+Example: `./scripts/rollback.sh BACKEND_COMMIT_SHA FRONTEND_COMMIT_SHA`
 
-./scripts/rollback.sh abc123456789
+Before running the command:
 
-The rollback script:
+1. Identify a known-good backend and frontend image pair.
+2. Confirm both image tags exist in GitHub Container Registry.
+3. Confirm the pair is compatible with the current database schema and migrations.
+4. Run the rollback from the production application directory on EC2.
 
-1. Pulls the specified GHCR image.
-2. Sets it as the backend image.
-3. Restarts the backend.
-4. Waits for the health check.
-5. Shows logs if the rollback fails.
+The script pulls both images before changing services, validates the Nginx configuration,
+updates the backend and frontend services, waits for both application containers to become healthy,
+restarts Nginx, verifies the running image references, and checks the public HTTPS health endpoint.
 
-The commit SHA must belong to a previously published CloudDrop backend image.
+The script does not automatically restore the previously running pair if
+rollback verification fails. Investigate container status and logs before
+attempting another change. Image availability alone does not prove a release
+is safe to roll back.
 
 ## 9. Container Registry
 

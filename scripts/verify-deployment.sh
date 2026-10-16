@@ -1,86 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+PUBLIC_HEALTH_URL="https://clouddrop-c8.duckdns.org/health"
 
 echo "Checking CloudDrop deployment..."
 echo
 
-echo "Checking backend container..."
+check_container() {
+  local name="$1"
+  local status health
 
-BACKEND_STATUS=$(docker inspect --format='{{.State.Status}}' clouddrop-backend 2>/dev/null || true)
+  status=$(docker inspect --format='{{.State.Status}}' "$name" 2>/dev/null || true)
+  if [ "$status" != "running" ]; then
+    echo "ERROR: $name is not running (status: ${status:-unknown})."
+    return 1
+  fi
 
-if [ "$BACKEND_STATUS" != "running" ]; then
-  echo "ERROR: Backend container is not running."
-  exit 1
-fi
+  health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$name" 2>/dev/null || true)
+  if [ "$health" != "healthy" ]; then
+    echo "ERROR: $name is not healthy (health: ${health:-unknown})."
+    return 1
+  fi
 
-echo "Backend container is running."
+  echo "$name is running and healthy."
+}
 
-echo
-echo "Checking backend health..."
+check_image() {
+  local container="$1"
+  local expected="${2:-}"
+  local actual
 
-BACKEND_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' clouddrop-backend 2>/dev/null || true)
+  actual=$(docker inspect --format='{{.Config.Image}}' "$container" 2>/dev/null || true)
+  if [ -z "$actual" ]; then
+    echo "ERROR: Cannot determine image for $container."
+    return 1
+  fi
 
-if [ "$BACKEND_HEALTH" != "healthy" ]; then
-  echo "ERROR: Backend health check failed."
-  echo "Current status: ${BACKEND_HEALTH:-unknown}"
-  exit 1
-fi
+  echo "$container image: $actual"
 
-echo "Backend is healthy."
+  if [ -n "$expected" ] && [ "$actual" != "$expected" ]; then
+    echo "ERROR: $container image does not match the expected image."
+    echo "Expected: $expected"
+    echo "Actual:   $actual"
+    return 1
+  fi
+}
 
-echo
-echo "Checking deployed backend image..."
-
-BACKEND_IMAGE=$(docker inspect --format='{{.Config.Image}}' clouddrop-backend 2>/dev/null || true)
-
-if [ -z "$BACKEND_IMAGE" ]; then
-  echo "ERROR: Could not determine backend image."
-  exit 1
-fi
-
-echo "Backend image: $BACKEND_IMAGE"
-
-echo
-echo "Checking frontend container..."
-
-FRONTEND_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' clouddrop-frontend 2>/dev/null || true)
-
-if [ "$FRONTEND_HEALTH" != "healthy" ]; then
-  echo "ERROR: Frontend health check failed."
-  echo "Current status: ${FRONTEND_HEALTH:-unknown}"
-  exit 1
-fi
-
-FRONTEND_IMAGE=$(docker inspect --format='{{.Config.Image}}' clouddrop-frontend 2>/dev/null || true)
-
-echo "Frontend is healthy."
-echo "Frontend image: ${FRONTEND_IMAGE:-unknown}"
+echo "=== Backend ==="
+check_container clouddrop-backend
+check_image clouddrop-backend "${BACKEND_IMAGE:-}"
 
 echo
-echo "Checking Nginx container..."
+echo "=== Frontend ==="
+check_container clouddrop-frontend
+check_image clouddrop-frontend "${FRONTEND_IMAGE:-}"
 
+echo
+echo "=== Nginx ==="
 NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' clouddrop-nginx 2>/dev/null || true)
-
 if [ "$NGINX_STATUS" != "running" ]; then
-  echo "ERROR: Nginx container is not running."
+  echo "ERROR: Nginx is not running (status: ${NGINX_STATUS:-unknown})."
   exit 1
 fi
-
-echo "Nginx container is running."
+echo "Nginx is running."
 
 echo
-echo "Checking public health endpoint..."
-
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/health || true)
+echo "=== Public HTTPS health endpoint ==="
+HTTP_STATUS=$(curl --silent --show-error --max-time 15 \
+  --output /dev/null --write-out '%{http_code}' \
+  "$PUBLIC_HEALTH_URL") || {
+    echo "ERROR: Could not reach $PUBLIC_HEALTH_URL"
+    exit 1
+  }
 
 if [ "$HTTP_STATUS" != "200" ]; then
-  echo "ERROR: Health endpoint returned HTTP ${HTTP_STATUS:-unknown}."
+  echo "ERROR: Public health endpoint returned HTTP $HTTP_STATUS."
   exit 1
 fi
 
-echo "Health endpoint returned HTTP 200."
-
+echo "Public health endpoint returned HTTP 200."
 echo
 echo "CloudDrop deployment verification successful."
-echo "Running backend image: $BACKEND_IMAGE"
+
+if [ -n "${BACKEND_IMAGE:-}" ]; then
+  echo "Verified backend image: $BACKEND_IMAGE"
+fi
+if [ -n "${FRONTEND_IMAGE:-}" ]; then
+  echo "Verified frontend image: $FRONTEND_IMAGE"
+fi
