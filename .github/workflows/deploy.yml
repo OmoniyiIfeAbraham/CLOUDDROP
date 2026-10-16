@@ -83,7 +83,6 @@ jobs:
 
           if [ "$backend_ok" -eq 0 ] || [ "$frontend_ok" -eq 0 ]; then
             echo "Both image-build workflows are not yet successful for $SHA."
-            echo "A later successful workflow completion will check again."
             echo "ready=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
