@@ -90,6 +90,8 @@ The frontend never edits a signed URL, forwards bearer tokens to storage, or tre
 
 The remaining human screen-reader check is described in [the accessibility review](docs/accessibility-review.md).
 
+The file-library and full-flow tests also create unique test users. Populated file lists, paging, and category filtering need backend test data.
+
 ## API integration
 
 The live frontend uses the routes mounted on `main`, all under `/api/v1`. The full list, with what each one is used for, is in [How the CloudDrop frontend works](docs/frontend-flows.md#api-endpoints-used-by-the-frontend). Uploads use one multipart request per file with `file` and `category` fields. Each file's category is assigned automatically from its MIME type using the same rules as `backend/src/lib/category.ts`. The queue shows a read-only category label, and the upload transport derives the category directly from the file; callers cannot supply an override. Server-side enforcement is tracked in [the category handoff](docs/backend-category-handoff.md). Uploads continue while the user moves between pages and can be cancelled. Downloads request a fresh signed URL per action; sharing displays the HTTPS URL returned by the backend, including the agreed CloudDrop short-link format. The user chooses a share lifetime of 1 hour, 1 day, or 7 days, sent as `ttlHours`; the dialog uses the backend's absolute `expiresAt` when supplied, with `expiresIn` as a compatibility fallback. See [the short-link handoff](docs/backend-short-links-handoff.md).
