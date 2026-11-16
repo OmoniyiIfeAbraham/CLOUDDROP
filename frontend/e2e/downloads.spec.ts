@@ -146,14 +146,21 @@ const installFixtures = async (page: Page, options: {
   return { requests: () => requested, storageRequests };
 };
 
-test("a signed attachment saves the original filename and bytes without CORS", async ({ page }, testInfo) => {
+test("a signed attachment preserves the Unicode filename and bytes without CORS", async ({ page, browserName }, testInfo) => {
   const fixtures = await installFixtures(page, { attachment: true });
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
   const download = await downloadEvent;
-  await expect(page.getByRole("link", { name: "Save file" })).toBeVisible();
+  const saveLink = page.getByRole("link", { name: "Save file" });
+  await expect(saveLink).toBeVisible();
+  await expect(saveLink).toHaveAttribute("download", filename);
+  await expect(page.getByRole("dialog", { name: "Download file" }).getByText(filename, { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("download-started.png"), fullPage: true });
-  expect(download.suggestedFilename()).toBe(filename);
+  // Linux WebKit uses system libsoup: 3.6.6 sanitizes spaces to underscores,
+  // while older versions preserve them. Allow only that native variation.
+  // https://github.com/GNOME/libsoup/blob/3.6.6/libsoup/soup-message-headers.c#L1508-L1511
+  const suggestedNames = browserName === "webkit" ? [filename, filename.replaceAll(" ", "_")] : [filename];
+  expect(suggestedNames).toContain(download.suggestedFilename());
   const saved = testInfo.outputPath(filename);
   await download.saveAs(saved);
   expect(await readFile(saved, "utf8")).toBe(content);
